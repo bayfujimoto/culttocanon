@@ -1,0 +1,420 @@
+/* ── Shared TUI shell styles ─────────────────────────────────────────────────
+   Used by both the public site and the admin. The visual structure is
+   identical across both modes; the palette is supplied by tokens.css via the
+   [data-theme] attribute on <html>.
+   ───────────────────────────────────────────────────────────────────────── */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  height: 100%;
+}
+
+body {
+  min-height: 100%;
+  background: var(--bg-backdrop);
+  color: var(--fg-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  line-height: 1.5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── App root — centered window with breathing room ──────────────────────── */
+#app {
+  display: flex;
+  flex-direction: column;
+  width: min(1080px, calc(100vw - 192px));
+  height: 80vh;
+  min-height: 400px;
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.18);
+}
+
+@media (max-width: 700px) {
+  body { align-items: stretch; }
+  #app {
+    width: 100%;
+    height: 100svh;
+    border: none;
+    box-shadow: none;
+  }
+}
+
+/* ── Blink animation (topbar cursor) ──────────────────────────────────────── */
+@keyframes shell-blink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0; }
+}
+
+/* ── Topbar ──────────────────────────────────────────────────────────────── */
+.shell-topbar {
+  flex-shrink: 0;
+  height: var(--topbar-h);
+  background: var(--bg-bar);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  position: relative;
+  z-index: 10;
+}
+
+.shell-identity {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  flex-shrink: 0;
+}
+
+.shell-identity-name {
+  color: var(--identity-accent);
+  font-size: var(--text-sm);
+  letter-spacing: 0.1em;
+}
+
+.shell-identity-sub {
+  color: var(--fg-muted);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+}
+
+.shell-identity-cursor {
+  display: inline-block;
+  width: 7px;
+  height: 11px;
+  background: var(--identity-accent);
+  vertical-align: text-bottom;
+  margin-left: 1px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .shell-identity-cursor {
+    animation: shell-blink 1.1s step-end infinite;
+  }
+}
+
+.shell-topbar-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+  overflow: hidden;
+  white-space: nowrap;
+  letter-spacing: 0.04em;
+  min-width: 0;
+}
+
+.shell-topbar-breadcrumb:empty {
+  display: none;
+}
+
+/* ── Three-pane grid ─────────────────────────────────────────────────────────
+   Asymmetric: a full-height left pane, then a right column split horizontally
+   into two stacked panes. Sizes are CSS custom properties so a later resize
+   module (ported from bayfujimoto.com's shell.js) can write to them directly.
+   ───────────────────────────────────────────────────────────────────────── */
+
+.shell-grid {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: var(--pane-a-w, 30%) var(--gutter-size) 1fr;
+  grid-template-rows: 1fr;
+  padding: 18px 14px 10px;
+  gap: 0;
+}
+
+.shell-grid-right {
+  display: grid;
+  grid-template-rows: var(--pane-b-h, 62%) 16px 1fr;
+  min-height: 0;
+  min-width: 0;
+}
+
+/* ── Pane chrome — bordered box with a notched label at the top ─────────── */
+.shell-pane {
+  position: relative;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.shell-pane.is-focused {
+  border-color: var(--border-strong);
+}
+
+.shell-pane-label {
+  position: absolute;
+  top: -0.55em;
+  left: 14px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  color: var(--fg-muted);
+  background: var(--bg);
+  padding: 0 8px;
+  line-height: 1;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.shell-pane-letter {
+  color: var(--identity-accent);
+  margin-right: 4px;
+}
+
+.shell-pane-letter::before { content: '['; color: var(--fg-muted); margin-right: 1px; }
+.shell-pane-letter::after  { content: ']'; color: var(--fg-muted); margin-left:  1px; }
+
+.shell-pane-body {
+  flex: 1;
+  padding: 20px 16px 14px;
+  overflow: auto;
+  min-height: 0;
+}
+
+/* ── Placeholder body content (Phase 0) ──────────────────────────────────── */
+.shell-placeholder {
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+  text-align: center;
+  margin-top: 44px;
+  letter-spacing: 0.03em;
+}
+
+.shell-placeholder-sub {
+  display: block;
+  margin-top: 6px;
+  font-size: var(--text-xs);
+  color: var(--fg-dim);
+}
+
+/* ── Gutters — placeholder until shell.js resize logic is ported ─────────── */
+.shell-gutter {
+  position: relative;
+  background: transparent;
+  outline: none;
+}
+
+.shell-gutter-v { cursor: col-resize; }
+.shell-gutter-h { cursor: row-resize; }
+
+.shell-gutter::after {
+  content: '';
+  position: absolute;
+  background: var(--border-faint);
+  opacity: 0;
+  transition: opacity 0.08s steps(2, end);
+}
+
+.shell-gutter-v::after {
+  top: 12px;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1px;
+}
+
+.shell-gutter-h::after {
+  left: 12px;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 1px;
+}
+
+.shell-gutter:hover::after,
+.shell-gutter:focus-visible::after {
+  opacity: 1;
+}
+
+/* ── Statusbar — two rows: state + keymap legend ─────────────────────────── */
+.shell-statusbar {
+  flex-shrink: 0;
+  min-height: var(--statusbar-h);
+  border-top: 1px solid var(--border);
+  background: var(--bg-bar);
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  position: relative;
+  z-index: 10;
+}
+
+.shell-statusbar-row {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  gap: 14px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.shell-statusbar-state {
+  border-bottom: 1px solid var(--border-faint);
+}
+
+.shell-status-state {
+  color: var(--fg-muted);
+}
+
+.shell-status-mode {
+  margin-left: auto;
+  color: var(--accent-blue);
+  letter-spacing: 0.08em;
+}
+
+.shell-status-mode--normal  { color: var(--accent-blue); }
+.shell-status-mode--insert  { color: var(--accent-green); }
+.shell-status-mode--command { color: var(--accent-violet); }
+.shell-status-mode--filter  { color: var(--accent-cyan); }
+
+.shell-status-time {
+  color: var(--fg-dim);
+  letter-spacing: 0.04em;
+  margin-left: 12px;
+}
+
+/* ── State row in error condition ────────────────────────────────────────── */
+.shell-status-state--error {
+  color: var(--accent-red);
+}
+
+/* ── Command bar — opened inline in the state row by modes.js ────────────── */
+.shell-status-state--command {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--fg);
+  min-width: 0;
+  flex: 1;
+}
+
+.shell-cmd-prompt {
+  color: var(--accent-violet);
+  font-weight: 500;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.shell-cmd-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--fg);
+  padding: 0;
+  margin: 0;
+  caret-color: var(--accent-violet);
+  min-width: 80px;
+  letter-spacing: inherit;
+}
+
+.shell-statusbar-keymap {
+  color: var(--fg-muted);
+}
+
+.shell-statusbar-keymap span {
+  display: inline-flex;
+  align-items: baseline;
+}
+
+.shell-statusbar-keymap kbd {
+  font-family: inherit;
+  font-size: inherit;
+  font-style: normal;
+  font-weight: inherit;
+  color: var(--identity-accent);
+  background: transparent;
+  padding: 0;
+  margin-right: 5px;
+}
+
+/* ── Mobile (≤700px) — single visible pane, bottom tabstrip ──────────────── */
+.shell-mobile-tabs {
+  display: none;
+}
+
+@media (max-width: 700px) {
+  .shell-grid {
+    display: flex;
+    flex-direction: column;
+    padding: 8px 8px 0;
+  }
+  .shell-grid-right {
+    display: contents;
+  }
+  .shell-pane:not(.is-mobile-active) {
+    display: none;
+  }
+  .shell-pane.is-mobile-active {
+    flex: 1;
+    min-height: 0;
+  }
+  .shell-gutter {
+    display: none;
+  }
+
+  .shell-mobile-tabs {
+    display: flex;
+    flex-shrink: 0;
+    border-top: 1px solid var(--border);
+    background: var(--bg-bar);
+  }
+
+  .shell-mobile-tab {
+    flex: 1;
+    min-height: 44px;
+    background: transparent;
+    border: none;
+    border-right: 1px solid var(--border-faint);
+    color: var(--fg-muted);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    padding: 4px 6px;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+  }
+
+  .shell-mobile-tab:last-child {
+    border-right: none;
+  }
+
+  .shell-mobile-tab:active {
+    background: var(--bg-selected);
+  }
+
+  .shell-mobile-tab-letter {
+    color: var(--fg-muted);
+    font-size: var(--text-sm);
+  }
+
+  .shell-mobile-tab.is-active .shell-mobile-tab-letter,
+  .shell-mobile-tab.is-active .shell-mobile-tab-label {
+    color: var(--identity-accent);
+  }
+}

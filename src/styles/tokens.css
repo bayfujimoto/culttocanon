@@ -1,0 +1,160 @@
+/* ── Design Tokens ───────────────────────────────────────────────────────────
+   Forked from bayfujimoto.com. Two themes, switched by [data-theme] on <html>:
+
+     [data-theme="public"] — cool light grey + Solarized accents.
+                             Inherited from bayfujimoto.com's admin palette.
+     [data-theme="admin"]  — IBM 5151 phosphor green on black.
+                             New. The writer enters a different visual universe
+                             when she crosses from reader to author.
+
+   Per the build-plan: the public side is paper (a manuscript culture in light);
+   the admin is phosphor (a computational culture in dark).
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* ── Shared primitives (not consumed directly by components) ── */
+:root {
+  --color-ink:    #1a1510;   /* warm near-black (kept for reference) */
+  --color-paper:  #f5f3ef;   /* warm near-white (kept for reference) */
+}
+
+/* ── PUBLIC theme — cool light grey + Solarized accents ─────────────────────
+   Inherits bayfujimoto.com's admin palette verbatim. The cool neutral surface
+   carries a 1px border between regions rather than a tonal shift.
+   ───────────────────────────────────────────────────────────────────────── */
+[data-theme="public"] {
+  /* Surface ramp */
+  --bg:           #d5d8db;   /* pane / body / topbar / statusbar */
+  --bg-bar:       var(--bg); /* bars share the body color */
+  --bg-elevated:  #e2e5e8;   /* hover, focused row, dropdown */
+  --bg-selected:  #b8bcc0;   /* selected row */
+  --bg-backdrop:  #afb3b7;   /* page backdrop behind the centered window */
+
+  /* Foreground ramp */
+  --fg:        #1f2226;      /* vibrant / focused / active text */
+  --fg-muted:  #4d5158;      /* default body text and labels */
+  --fg-dim:    #7d8186;      /* placeholder, hint */
+
+  /* Borders */
+  --border:        #9ea2a6;
+  --border-strong: #6c7074;
+  --border-faint:  #b4b8bc;
+
+  /* Solarized accents — used semantically (Mode chip uses blue, etc.) */
+  --accent-yellow:  #b58900;
+  --accent-orange:  #cb4b16;
+  --accent-red:     #dc322f;
+  --accent-magenta: #d33682;
+  --accent-violet:  #6c71c4;
+  --accent-blue:    #268bd2;
+  --accent-cyan:    #2aa198;
+  --accent-green:   #859900;
+
+  /* Feedback shorthands */
+  --color-success: var(--accent-green);
+  --color-error:   var(--accent-red);
+
+  /* Identity / chrome accent — the focused text color, used for the topbar
+     name and pane-letter markers. */
+  --identity-accent: var(--fg);
+}
+
+/* ── ADMIN theme — IBM 5151 phosphor green on black ─────────────────────────
+   Maximally distinct from public. The bright emerald foreground is reserved
+   for focused/active text; body text uses the dimmer phosphor. Two break
+   colors only: amber for warnings, red for errors. A dim cyan is permitted
+   for hyperlinks to preserve the early-CRT bicolor convention.
+   ───────────────────────────────────────────────────────────────────────── */
+[data-theme="admin"] {
+  /* Surface ramp */
+  --bg:           #000000;
+  --bg-bar:       var(--bg);
+  --bg-elevated:  #0a1a0a;   /* very slightly green-tinted dark for hover */
+  --bg-selected:  #1a3a1a;   /* darker green for selected rows */
+  --bg-backdrop:  #050505;
+
+  /* Foreground ramp — phosphor green */
+  --fg:        #33ff33;      /* bright phosphor — focused / active */
+  --fg-muted:  #1faa1f;      /* dimmed phosphor — body text */
+  --fg-dim:    #157015;      /* very dim phosphor — placeholder, hint */
+
+  /* Borders — phosphor at low intensity */
+  --border:        #1faa1f;
+  --border-strong: #33ff33;
+  --border-faint:  #0e5a0e;
+
+  /* Accents — deliberately constrained to preserve monochrome */
+  --accent-amber:  #ffb000;   /* warnings — preserves retro-CRT bicolor */
+  --accent-red:    #ff3030;   /* errors */
+  --accent-cyan:   #00cccc;   /* hyperlinks, mode chip */
+  --accent-green:  #66ff66;   /* success (brighter than --fg) */
+
+  /* Aliases so shared component CSS works under both themes. Mode chip / state
+     colors are remapped to the admin palette's three semantic colors. */
+  --accent-yellow:  var(--accent-amber);
+  --accent-orange:  var(--accent-amber);
+  --accent-magenta: var(--accent-red);
+  --accent-violet:  var(--accent-cyan);
+  --accent-blue:    var(--accent-cyan);
+
+  --color-success: var(--accent-green);
+  --color-error:   var(--accent-red);
+
+  /* The topbar identity and pane-letter markers glow phosphor-bright. */
+  --identity-accent: var(--fg);
+}
+
+/* ── Fonts ── */
+@font-face {
+  font-family: 'Commit Mono';
+  src: url('/fonts/CommitMono-400-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Commit Mono';
+  src: url('/fonts/CommitMono-400-Italic.woff2') format('woff2');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* ── Typography & spacing & layout — shared across both themes ── */
+:root {
+  --font-mono:  'Commit Mono', ui-monospace, "Cascadia Mono", "Fira Mono", "JetBrains Mono", monospace;
+  --font-serif: 'EB Garamond', Georgia, serif;
+
+  /* Type scale */
+  --text-xs:   0.8rem;
+  --text-sm:   0.9rem;
+  --text-base: 1.0rem;
+  --text-md:   1.1rem;
+  --text-lg:   1.2rem;
+  --text-xl:   1.4rem;
+
+  /* Spacing */
+  --space-1:  2px;
+  --space-2:  4px;
+  --space-3:  8px;
+  --space-4:  12px;
+  --space-5:  16px;
+  --space-6:  24px;
+  --space-7:  32px;
+  --space-8:  48px;
+
+  /* Borders & motion */
+  --border-width: 1px;
+  --radius-none:  0;
+  --radius-sm:    2px;
+
+  --dur-fast:  0.1s;
+  --dur-base:  0.15s;
+  --dur-slow:  0.32s;
+  --ease-out:  cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Shell layout constants */
+  --topbar-h:    54px;
+  --statusbar-h: 48px;
+  --gutter-size: 6px;
+}

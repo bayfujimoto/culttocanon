@@ -1,0 +1,185 @@
+/* ── Post body typography ────────────────────────────────────────────────────
+   Rendered post bodies use EB Garamond serif for prose, Commit Mono for code
+   and inline metadata, with a restrained heading scale. Works under both
+   themes by reading from the design tokens.
+   ───────────────────────────────────────────────────────────────────────── */
+
+.post {
+  max-width: 62ch;
+  margin: 0 auto;
+  padding: 8px 0 24px;
+  color: var(--fg-muted);
+  font-family: var(--font-serif);
+  font-size: 1.0625rem;
+  line-height: 1.6;
+}
+
+.post-header {
+  margin-bottom: 28px;
+  border-bottom: 1px solid var(--border-faint);
+  padding-bottom: 16px;
+  font-family: var(--font-mono);
+}
+
+.post-kind-row {
+  display: flex;
+  gap: 10px;
+  font-size: var(--text-xs);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+  margin-bottom: 8px;
+}
+
+.post-kind {
+  color: var(--identity-accent);
+}
+
+.post-status {
+  color: var(--fg-muted);
+  border: 1px solid var(--border-faint);
+  padding: 0 6px;
+  border-radius: 1px;
+}
+
+.post-status--draft     { color: var(--accent-yellow); border-color: var(--accent-yellow); }
+.post-status--evergreen { color: var(--accent-green);  border-color: var(--accent-green); }
+.post-status--abandoned { color: var(--fg-dim);        border-color: var(--border-faint); text-decoration: line-through; }
+
+.post-title {
+  font-family: var(--font-serif);
+  font-size: 1.6rem;
+  font-weight: 500;
+  color: var(--fg);
+  line-height: 1.25;
+  margin: 4px 0 10px;
+  letter-spacing: 0;
+}
+
+.post-epigraph {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 0.95rem;
+  color: var(--fg-muted);
+  margin: 6px 0 12px;
+  padding-left: 12px;
+  border-left: 2px solid var(--border-faint);
+}
+
+.post-meta {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--fg-dim);
+  letter-spacing: 0.05em;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.post-meta-sep {
+  color: var(--border);
+}
+
+.post-meta-id {
+  color: var(--fg-muted);
+}
+
+/* ── Body — markdown rendering ──────────────────────────────────────────── */
+
+.post-body > * + * {
+  margin-top: 1em;
+}
+
+.post-body p {
+  margin: 0;
+}
+
+.post-body h2 {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--fg);
+  margin-top: 2em;
+}
+
+.post-body h3 {
+  font-family: var(--font-serif);
+  font-size: 1.15rem;
+  font-weight: 500;
+  color: var(--fg);
+  margin-top: 1.5em;
+}
+
+.post-body em {
+  font-style: italic;
+  color: var(--fg);
+}
+
+.post-body strong {
+  font-weight: 500;
+  color: var(--fg);
+}
+
+.post-body a {
+  color: var(--accent-blue);
+  text-decoration: none;
+  border-bottom: 1px solid var(--accent-blue);
+  transition: opacity 0.1s;
+}
+
+.post-body a:hover {
+  opacity: 0.7;
+}
+
+.post-body blockquote {
+  margin: 1em 0;
+  padding-left: 16px;
+  border-left: 2px solid var(--border-faint);
+  color: var(--fg-muted);
+  font-style: italic;
+}
+
+.post-body ul,
+.post-body ol {
+  padding-left: 1.5em;
+}
+
+.post-body li + li {
+  margin-top: 0.3em;
+}
+
+.post-body code {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  background: var(--bg-elevated);
+  padding: 0 4px;
+  border-radius: 2px;
+  color: var(--fg);
+}
+
+.post-body pre {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-faint);
+  padding: 12px;
+  overflow-x: auto;
+  border-radius: 2px;
+  line-height: 1.45;
+}
+
+.post-body pre code {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+}
+
+.post-body hr {
+  border: none;
+  border-top: 1px solid var(--border-faint);
+  margin: 2em auto;
+  width: 50%;
+}

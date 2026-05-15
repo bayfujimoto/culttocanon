@@ -1,0 +1,19 @@
+{
+  "name": "culttocanon",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "description": "Cult to Canon — a text-primary TUI archive in the lineage of cult-to-canon migration.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0",
+    "marked": "^15.0.0"
+  },
+  "devDependencies": {
+    "vite": "^6.0.0"
+  }
+}

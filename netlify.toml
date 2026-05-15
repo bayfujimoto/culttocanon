@@ -1,0 +1,30 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Functions live under netlify/functions/.
+[functions]
+  directory = "netlify/functions"
+
+# Admin commit endpoint — routed to the Netlify Function. Must come BEFORE
+# the SPA catch-all so /api/* is not swallowed by index.html.
+[[redirects]]
+  from = "/api/commit-all"
+  to   = "/.netlify/functions/commit-all"
+  status = 200
+
+# Admin route — serves admin.html; the in-browser router handles sub-routes.
+[[redirects]]
+  from = "/admin/*"
+  to   = "/admin.html"
+  status = 200
+
+# SPA catch-all — every public path serves index.html; the public router
+# (added in Phase 2) resolves the actual piece from the URL.
+[[redirects]]
+  from = "/*"
+  to   = "/index.html"
+  status = 200
