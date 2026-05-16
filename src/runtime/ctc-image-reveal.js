@@ -195,30 +195,37 @@ function initInteraction(canvas, ctx, ditherImg, W, H, opts) {
     });
   }
 
-  canvas.addEventListener("mousemove", (e) => {
-    const r = canvas.getBoundingClientRect();
-    const nx = (e.clientX - r.left) * (canvas.width  / r.width);
-    const ny = (e.clientY - r.top)  * (canvas.height / r.height);
-    const dx = nx - (state.hover.x ?? nx);
-    const dy = ny - (state.hover.y ?? ny);
-    state.hover.x = nx;
-    state.hover.y = ny;
-    state.hover.speed = Math.hypot(dx, dy);
-    state.hover.lastMove = performance.now();
-  });
-  canvas.addEventListener("mouseleave", () => {
-    state.hover.x = null;
-    state.hover.y = null;
-    state.hover.speed = 0;
-    state.hover.lastMove = null;
-  });
+  // Hover trail is pointer-device only — skip on touch-primary devices (iOS,
+  // Android) where mousemove doesn't fire and the effect would never trigger.
+  const hasHover = window.matchMedia("(hover: hover)").matches;
 
-  // Off-screen buffer for the hover trail. Seeded from the dither pixels;
-  // flicker writes into it and a per-frame decay restores flipped pixels.
-  ctx.drawImage(ditherImg, 0, 0, W, H);
-  const trail = ctx.getImageData(0, 0, W, H);
-  // Clean snapshot used as ground truth for decay restoration.
-  const clean = new Uint8Array(trail.data);
+  let trail = null, clean = null;
+  if (hasHover) {
+    canvas.addEventListener("mousemove", (e) => {
+      const r = canvas.getBoundingClientRect();
+      const nx = (e.clientX - r.left) * (canvas.width  / r.width);
+      const ny = (e.clientY - r.top)  * (canvas.height / r.height);
+      const dx = nx - (state.hover.x ?? nx);
+      const dy = ny - (state.hover.y ?? ny);
+      state.hover.x = nx;
+      state.hover.y = ny;
+      state.hover.speed = Math.hypot(dx, dy);
+      state.hover.lastMove = performance.now();
+    });
+    canvas.addEventListener("mouseleave", () => {
+      state.hover.x = null;
+      state.hover.y = null;
+      state.hover.speed = 0;
+      state.hover.lastMove = null;
+    });
+
+    // Off-screen buffer for the hover trail. Seeded from the dither pixels;
+    // flicker writes into it and a per-frame decay restores flipped pixels.
+    ctx.drawImage(ditherImg, 0, 0, W, H);
+    trail = ctx.getImageData(0, 0, W, H);
+    // Clean snapshot used as ground truth for decay restoration.
+    clean = new Uint8Array(trail.data);
+  }
 
   // Start the rAF loop. It's idle (single drawImage per frame) when the
   // canvas is at rest and no cursor is over it.
@@ -326,9 +333,11 @@ function render(state, phase, opts, ctx, ditherImg, W, H, COLS, ROWS, now, trail
     // Rest state — full-canvas redraw of either dither or source.
     if (state.revealed && state.layers) {
       ctx.drawImage(state.layers.source, 0, 0, W, H);
-    } else {
+    } else if (trail && clean) {
       applyHoverFlicker(state.hover, ctx, ditherImg, W, H, now, trail, clean);
       ctx.putImageData(trail, 0, 0);
+    } else {
+      ctx.drawImage(ditherImg, 0, 0, W, H);
     }
     return;
   }
