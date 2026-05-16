@@ -12,6 +12,13 @@
 // blurring takes INSERT → NORMAL. The COMMAND-mode input is excluded so it
 // doesn't trigger auto-INSERT.
 
+import {
+  rerenderKeymap,
+  toggleHelp,
+  closeHelp,
+  isHelpOpen,
+} from "../../shell/render-shell.js";
+
 let mode             = "normal";
 let focusedPane      = "i";
 let handlers         = {};
@@ -92,6 +99,25 @@ function onKeyDown(e) {
   }
 
   // Normal mode
+  // Help overlay toggle. This document handler is capture-phase, so it runs
+  // before the overlay's own keydown — toggleHelp() handles both open and
+  // close from here; the overlay's listener is a redundant safety net.
+  if (e.key === "?") {
+    toggleHelp();
+    e.preventDefault();
+    return;
+  }
+
+  // Esc — if the overlay is open, close it; otherwise return focus to the
+  // primary pane (Index) and clear any error flash.
+  if (e.key === "Escape") {
+    e.preventDefault();
+    if (isHelpOpen()) { closeHelp(); return; }
+    clearErrorFlash();
+    setFocusedPane("i");
+    return;
+  }
+
   if (e.key === "i" || e.key === "m" || e.key === "d") {
     setFocusedPane(e.key);
     e.preventDefault();
@@ -181,18 +207,36 @@ function executeCommand(raw) {
   }
 }
 
-function flashStatus(msg) {
-  setTimeout(() => {
+// ── Error flash ──────────────────────────────────────────────────────────────
+// One cancelable timer; resets to the canonical resting text "⏵ ready" rather
+// than capturing-and-restoring (which let a mid-flash Esc restore stale text).
+// Exported so every flash path (incl. the entry file) shares this mechanism.
+let flashTimer = null;
+
+export function flashStatus(msg) {
+  if (flashTimer) clearTimeout(flashTimer);
+  // Defer one tick so the message lands in the rebuilt #shell-status-state
+  // after command mode exits (executeCommand runs before exitCommandMode).
+  flashTimer = setTimeout(() => {
     const el = document.getElementById("shell-status-state");
-    if (!el) return;
-    const original = el.textContent;
+    if (!el) { flashTimer = null; return; }
     el.textContent = `! ${msg}`;
     el.classList.add("shell-status-state--error");
-    setTimeout(() => {
-      el.textContent = original;
+    flashTimer = setTimeout(() => {
+      el.textContent = "⏵ ready";
       el.classList.remove("shell-status-state--error");
+      flashTimer = null;
     }, 2000);
   }, 0);
+}
+
+export function clearErrorFlash() {
+  if (flashTimer) { clearTimeout(flashTimer); flashTimer = null; }
+  const el = document.getElementById("shell-status-state");
+  if (el && el.classList.contains("shell-status-state--error")) {
+    el.classList.remove("shell-status-state--error");
+    el.textContent = "⏵ ready";
+  }
 }
 
 // ── Setters ──────────────────────────────────────────────────────────────────
@@ -211,6 +255,7 @@ export function setFocusedPane(key) {
     p.classList.toggle("is-focused", p.dataset.pane === key);
   });
   handlers.onFocusChange?.(key);
+  rerenderKeymap();
 }
 
 export function getMode()        { return mode; }
@@ -238,60 +283,4 @@ function isEditable(el) {
 
 function isUserEditable(el) {
   return isEditable(el) && !el.classList.contains("shell-cmd-input");
-}
-
-// ── Keymap legend renderer ───────────────────────────────────────────────────
-// Replaces the simple legend installed by render-shell.js with one that
-// reflects the admin's full mode/key map. Call after initModes().
-export function renderAdminKeymap() {
-  const el = document.getElementById("shell-status-keymap");
-  if (!el) return;
-
-  const groups = {
-    i: [
-      ["j/k",   "navigate"],
-      ["Enter", "open"],
-      ["m",     "Manuscript"],
-      ["d",     "Dispatch"],
-      [":w",    "commit"],
-      [":new",  "new"],
-      [":",     "cmd"],
-    ],
-    m: [
-      ["Esc",   "normal"],
-      ["i",     "Index"],
-      ["d",     "Dispatch"],
-      [":w",    "commit"],
-      [":q",    "close"],
-      [":",     "cmd"],
-    ],
-    d: [
-      ["i",     "Index"],
-      ["m",     "Manuscript"],
-      [":w",    "commit"],
-      [":",     "cmd"],
-    ],
-  };
-
-  // Re-render whenever the focused pane changes
-  function render() {
-    const list = groups[getFocusedPane()] || groups.i;
-    el.innerHTML = list
-      .map(([k, lbl]) => `<span><kbd>${escapeHTML(k)}</kbd>${escapeHTML(lbl)}</span>`)
-      .join("");
-  }
-
-  render();
-  // Wrap the existing handler to also re-render the legend.
-  const prev = handlers.onFocusChange;
-  handlers.onFocusChange = (key) => {
-    if (prev) prev(key);
-    render();
-  };
-}
-
-function escapeHTML(s) {
-  return String(s).replace(/[&<>"']/g, c => (
-    { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
-  ));
 }

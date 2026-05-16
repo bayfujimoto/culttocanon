@@ -12,17 +12,9 @@
 // from the currently-opened post so navigating doesn't open new pieces — only
 // Enter or click does that.
 
-import { KIND } from "../../lib/vocabularies.js";
+import { KIND, KIND_SHORT } from "../../lib/vocabularies.js";
 
 const STORAGE_KEY = "browse.mode";
-
-const KIND_SHORT = {
-  essay:    "ess",
-  fragment: "frg",
-  note:     "not",
-  review:   "rev",
-  fiction:  "fic",
-};
 
 // ── Internal state ───────────────────────────────────────────────────────────
 let _container = null;
@@ -122,7 +114,7 @@ function render() {
 }
 
 function renderFlat(posts) {
-  return `<ul class="browse-list browse-list--flat">${posts.map(renderRow).join("")}</ul>`;
+  return `<ul class="browse-list browse-list--flat">${posts.map(p => renderRow(p, { showKind: true })).join("")}</ul>`;
 }
 
 function renderTree(posts) {
@@ -142,21 +134,24 @@ function renderTree(posts) {
           <span class="browse-group-kind">${escapeHTML(k)}</span>
           <span class="browse-group-count">${group.length}</span>
         </h3>
-        <ul class="browse-list browse-list--tree">${group.map(renderRow).join("")}</ul>
+        <ul class="browse-list browse-list--tree">${group.map(p => renderRow(p, { showKind: false })).join("")}</ul>
       </section>
     `);
   }
   return sections.join("");
 }
 
-function renderRow(p) {
-  const date = p.created instanceof Date ? p.created.toISOString().slice(0, 7) : "";
+function renderRow(p, { showKind } = {}) {
+  // YY-MM, e.g. 2026-05 → "26-05"
+  const date = p.created instanceof Date ? p.created.toISOString().slice(2, 7) : "";
+  const kind = showKind
+    ? `<span class="browse-kind">${KIND_SHORT[p.kind] || "—"}</span>`
+    : "";
   return `
-    <li class="browse-row" data-post-id="${escapeAttr(p.id)}">
-      <span class="browse-kind">${KIND_SHORT[p.kind] || "—"}</span>
+    <li class="browse-row${showKind ? "" : " browse-row--no-kind"}" data-post-id="${escapeAttr(p.id)}">
+      ${kind}
       <span class="browse-title">${escapeHTML(p.title)}</span>
       <span class="browse-date">${escapeHTML(date)}</span>
-      <span class="browse-status browse-status--${escapeAttr(p.status)}">${escapeHTML(p.status[0])}</span>
     </li>
   `;
 }
@@ -198,7 +193,7 @@ function escapeHTML(s) {
 
 function escapeAttr(s) { return escapeHTML(s); }
 
-// CSS.escape polyfill — IDs like POST-2026-001 are safe but escaping is correct.
+// CSS.escape polyfill — IDs like ESS-2026-001 are safe but escaping is correct.
 function cssEscape(s) {
   if (typeof CSS !== "undefined" && CSS.escape) return CSS.escape(s);
   return String(s).replace(/[^\w-]/g, "\\$&");

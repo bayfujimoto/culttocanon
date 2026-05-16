@@ -6,7 +6,7 @@
 //
 // The Post object shape (after validation):
 //   {
-//     id:         "POST-2026-001",
+//     id:         "ESS-2026-001",
 //     slug:       "on-the-backrooms-as-canon",
 //     title:      "On the Backrooms as Canon",
 //     created:    Date,
@@ -22,12 +22,13 @@
 //     epigraph:   string | null,
 //     length:     number,        // word count of body (auto-computed)
 //     body:       string,        // markdown body
-//     _file:      "/src/content/posts/POST-2026-001-…md",
+//     _file:      "/src/content/posts/ESS-2026-001-…md",
 //   }
 
 import { parseFrontMatter } from "./front-matter.js";
 import { ENUMS } from "./vocabularies.js";
 import { isPostId } from "./id.js";
+import { wordCount } from "./history.js";
 
 // Vite glob: every .md file under src/content/posts/, eagerly imported as raw
 // strings. New posts trigger an HMR reload.
@@ -66,7 +67,15 @@ export function getPostById(id) {
 
 // ── Parse + validate a single file ───────────────────────────────────────────
 function parseOne(file, raw) {
-  const { data, body } = parseFrontMatter(raw);
+  const { data, body, error } = parseFrontMatter(raw);
+
+  // A YAML parse failure yields an empty `data` — every required field would
+  // be undefined, silently corrupting downstream views. Skip the post loudly
+  // rather than emitting a half-formed object.
+  if (error) {
+    warn(file, `front-matter failed to parse (${error}) — post skipped`);
+    return null;
+  }
 
   // Required fields
   for (const f of REQUIRED) {
@@ -75,9 +84,9 @@ function parseOne(file, raw) {
     }
   }
 
-  // ID must match POST-YYYY-NNN
+  // ID must match <KIND>-YYYY-NNN (kind short-code prefix; see lib/id.js)
   if (data.id && !isPostId(data.id)) {
-    warn(file, `id \`${data.id}\` does not match POST-YYYY-NNN`);
+    warn(file, `id \`${data.id}\` does not match <KIND>-YYYY-NNN`);
   }
 
   // Enum checks
@@ -128,10 +137,6 @@ function coerceDate(v) {
     if (!Number.isNaN(+d)) return d;
   }
   return null;
-}
-
-function wordCount(text) {
-  return text.split(/\s+/).filter(Boolean).length;
 }
 
 function warn(file, msg) {

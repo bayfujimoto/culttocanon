@@ -1,0 +1,2 @@
+# Per-post revision snapshots, written by the admin Dispatch flow.
+# See src/lib/history.js. One <POST-ID>.json per revised post.

@@ -5,8 +5,8 @@
 //
 // Row format (git-status shorthand):
 //
-//   M  POST-2026-001  src/content/posts/POST-2026-001-…md
-//   A  POST-2026-005  src/content/posts/POST-2026-005-…md
+//   M  ESS-2026-001  src/content/posts/ESS-2026-001-…md
+//   A  ESS-2026-005  src/content/posts/ESS-2026-005-…md
 //
 // Click a pending row → open that post in the Manuscript pane (same code
 // path as the Index click). Click the commit button → bundle all pending
@@ -14,6 +14,14 @@
 
 import { getState, setState, subscribe, clearPending } from "../state.js";
 import { commitAll }                                   from "../lib/api.js";
+import { parseFrontMatter }                            from "../../lib/front-matter.js";
+import { serializePost }                               from "../lib/serializer.js";
+import {
+  getHistoryById,
+  appendVersion,
+  historyPathFor,
+  wordCount,
+} from "../../lib/history.js";
 
 const HISTORY_LIMIT = 5;
 const sessionCommits = [];
@@ -58,11 +66,44 @@ export async function triggerCommit() {
 
   const snapshot = pendingChanges.slice();
 
+  // For every edit: stamp `revised` automatically and snapshot the prior
+  // committed body into the post's history sidecar. Both ride this commit.
+  const files = snapshot.map(c => ({ filePath: c.filePath, content: c.content }));
+  for (const change of snapshot) {
+    if (change.action !== "edit") continue;
+
+    const { data, body } = parseFrontMatter(change.content);
+    if (!data || Object.keys(data).length === 0) continue; // unparseable — leave as-is
+
+    // Prior state = the post as loaded in memory at app boot.
+    const prior = (getState().allPosts || []).find(p => p.id === change.id);
+    if (prior && typeof prior.body === "string") {
+      const priorRevised = prior.revised || prior.created;
+      const next = appendVersion(getHistoryById(change.id), {
+        id:      change.id,
+        revised: toISODate(priorRevised),
+        words:   wordCount(prior.body),
+        body:    prior.body,
+      });
+      files.push({
+        filePath: historyPathFor(change.id),
+        content:  JSON.stringify(next, null, 2) + "\n",
+      });
+    }
+
+    // Auto-stamp the revision date to the dispatch date, then re-serialize.
+    data.revised = new Date();
+    const restamped = serializePost({ ...data, body });
+    change.content = restamped;
+    const f = files.find(x => x.filePath === change.filePath);
+    if (f) f.content = restamped;
+  }
+
   setState({ status: "saving", statusMessage: "committing…" });
 
   try {
     const result = await commitAll({
-      files:   snapshot.map(c => ({ filePath: c.filePath, content: c.content })),
+      files,
       message,
     });
 
@@ -221,6 +262,16 @@ function summarize(c) {
 
 function formatTime(d) {
   return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+}
+
+// Coerce a Date|string into a YYYY-MM-DD string for the history entry.
+function toISODate(v) {
+  if (v instanceof Date && !Number.isNaN(+v)) return v.toISOString().slice(0, 10);
+  if (typeof v === "string" && v) {
+    const d = new Date(v);
+    if (!Number.isNaN(+d)) return d.toISOString().slice(0, 10);
+  }
+  return "";
 }
 
 function flash(msg) {

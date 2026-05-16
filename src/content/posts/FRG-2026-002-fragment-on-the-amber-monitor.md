@@ -1,5 +1,5 @@
 ---
-id: POST-2026-002
+id: FRG-2026-002
 slug: fragment-on-the-amber-monitor
 title: Fragment on the Amber Monitor
 created: 2026-04-22
@@ -9,9 +9,9 @@ kind: fragment
 register: performative
 confidence: certain
 subjects: [hauntology, interface, slow-web]
-links: [POST-2026-003]
+links: [NOT-2026-003]
 visibility: public
-epigraph: "The slow cancellation of the future." — Mark Fisher
+epigraph: '"The slow cancellation of the future." — Mark Fisher'
 ---
 
 The amber monitor was already obsolete when it was new. The green phosphor came first; the amber arrived as an ergonomic correction, easier on the eyes for the long shifts of the data-entry economy. By the time it shipped, the CRT itself was being supplanted by the LCD.

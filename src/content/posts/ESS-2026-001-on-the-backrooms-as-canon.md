@@ -1,5 +1,5 @@
 ---
-id: POST-2026-001
+id: ESS-2026-001
 slug: on-the-backrooms-as-canon
 title: On the Backrooms as Canon
 created: 2026-05-15

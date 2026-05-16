@@ -1,5 +1,5 @@
 ---
-id: POST-2026-003
+id: NOT-2026-003
 slug: note-on-paratext
 title: Note on Paratext
 created: 2026-05-08
@@ -8,7 +8,7 @@ kind: note
 register: plainspoken
 confidence: log
 subjects: [paratext, marginalia, criticism]
-links: [POST-2026-002]
+links: [FRG-2026-002]
 visibility: public
 ---
 

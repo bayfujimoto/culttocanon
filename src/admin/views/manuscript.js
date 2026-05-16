@@ -3,7 +3,7 @@
 //
 //   dashboard  → no piece open. Shows a brief summary.
 //   edit       → edit form for an existing post.
-//   new        → fresh form with a minted POST-YYYY-NNN id and empty fields.
+//   new        → fresh form with a minted <KIND>-YYYY-NNN id and empty fields.
 
 import { renderForm } from "../forms/post-form.js";
 import { nextId }     from "../../lib/id.js";
@@ -39,7 +39,10 @@ export function renderEdit(container, post) {
 
 export function renderNew(container, allPosts) {
   const year = new Date().getFullYear();
-  const id   = nextId(year, allPosts.map(p => p.id));
+  const kind = "essay";                       // matches blank.kind below
+  // Provisional ID — the prefix is finalized from the chosen kind at first
+  // save (see post-form.js save()).
+  const id   = nextId(kind, year, allPosts.map(p => p.id));
   const blank = {
     id,
     slug:       "",
@@ -47,7 +50,7 @@ export function renderNew(container, allPosts) {
     created:    new Date(),
     revised:    null,
     status:     "draft",
-    kind:       "essay",
+    kind,
     register:   "plainspoken",
     confidence: null,
     subjects:   [],

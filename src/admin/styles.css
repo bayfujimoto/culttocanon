@@ -7,6 +7,38 @@
      4. Dispatch pane (bottom right) — pending changes + commit
    ───────────────────────────────────────────────────────────────────────── */
 
+/* ── Minimal scrollbars ────────────────────────────────────────────────────
+   Thin, trackless, phosphor-tinted thumb that only asserts itself on hover.
+   Scoped to the admin theme so the public site keeps native scrollbars. */
+
+[data-theme="admin"] * {
+  scrollbar-width: thin;                            /* Firefox */
+  scrollbar-color: var(--border-faint) transparent;
+}
+
+[data-theme="admin"] ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+[data-theme="admin"] ::-webkit-scrollbar-track,
+[data-theme="admin"] ::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+[data-theme="admin"] ::-webkit-scrollbar-thumb {
+  background: var(--border-faint);
+  border-radius: 0;
+}
+
+[data-theme="admin"] ::-webkit-scrollbar-thumb:hover {
+  background: var(--border-strong);
+}
+
+[data-theme="admin"] ::-webkit-scrollbar-button {
+  display: none;
+}
+
 /* ── Phosphor glow ─────────────────────────────────────────────────────── */
 
 [data-theme="admin"] .shell-identity-name,
@@ -283,7 +315,9 @@
   letter-spacing: 0.05em;
 }
 
-.form-save {
+/* One phosphor button treatment, shared by Save and the slug-fill control. */
+.form-save,
+.form-slug-fill {
   background: transparent;
   border: 1px solid var(--border-strong);
   color: var(--fg);
@@ -296,8 +330,11 @@
   transition: all 0.08s steps(2, end);
 }
 
-.form-save:hover {
+.form-save:hover,
+.form-slug-fill:hover {
   background: var(--bg-elevated);
+  border-color: var(--border-strong);
+  color: var(--fg);
 }
 
 .form-save-hint {
@@ -340,17 +377,20 @@
   background: var(--bg-elevated);
   border: 1px solid var(--border-faint);
   color: var(--fg);
-  font-family: var(--font-serif);
-  font-size: var(--text-sm);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
   padding: 5px 8px;
   border-radius: 1px;
   outline: none;
+  /* Phosphor block caret. caret-shape is honored in Chrome/Safari; Firefox
+     ignores it and falls back to a recolored thin caret — accepted. The
+     platform handles caret blink. */
+  caret-color: var(--fg);
+  caret-shape: block;
 }
 
-.form-input.is-mono {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-}
+/* .is-mono is retained as a no-op marker: every .form-input is now monospace
+   at one size. Kept so the post-form.js markup needn't change. */
 
 .form-input:focus {
   border-color: var(--border-strong);
@@ -379,31 +419,120 @@ textarea.form-input {
 }
 
 .form-slug-fill {
-  background: transparent;
+  flex-shrink: 0;
+  padding: 3px 8px;
+}
+
+/* Date field — plain text, validated on blur (see post-form.js) */
+.form-date.is-invalid,
+.form-date.is-invalid:focus {
+  border-color: var(--accent-amber);
+  box-shadow: inset 0 0 0 1px var(--accent-amber);
+}
+
+/* ── Listbox (custom <select> replacement; see forms/listbox.js) ──────────── */
+
+.form-listbox-wrap {
+  position: relative;
+}
+
+.form-listbox {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  background: var(--bg-elevated);
   border: 1px solid var(--border-faint);
-  color: var(--fg-muted);
+  color: var(--fg);
   font-family: var(--font-mono);
-  padding: 3px 6px;
-  cursor: pointer;
+  font-size: var(--text-xs);
+  text-align: left;
+  padding: 5px 8px;
   border-radius: 1px;
+  cursor: pointer;
+  outline: none;
+}
+
+.form-listbox:focus,
+.form-listbox[aria-expanded="true"] {
+  border-color: var(--border-strong);
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+.form-listbox-value {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Reuse the old select-arrow glyph: two gradient triangles forming a caret. */
+.form-listbox-caret {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  margin-left: 8px;
+  background-image: linear-gradient(45deg, transparent 50%, var(--fg-muted) 50%),
+                    linear-gradient(135deg, var(--fg-muted) 50%, transparent 50%);
+  background-position: 0 calc(50% - 1px), 4px calc(50% - 1px);
+  background-size: 4px 4px;
+  background-repeat: no-repeat;
+}
+
+.form-listbox[aria-expanded="true"] .form-listbox-caret {
+  background-image: linear-gradient(45deg, transparent 50%, var(--fg) 50%),
+                    linear-gradient(135deg, var(--fg) 50%, transparent 50%);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .form-listbox[aria-expanded="true"] .form-listbox-caret {
+    animation: shell-blink 1.1s step-end infinite;
+  }
+}
+
+.form-listbox-panel {
+  list-style: none;
+  margin: 0;
+  padding: 2px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: 1px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6);
+  overflow-y: auto;
+  z-index: 50;
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
 }
 
-.form-slug-fill:hover {
-  border-color: var(--border);
+.form-listbox-option {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 6px;
+  color: var(--fg-muted);
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  white-space: nowrap;
+}
+
+.form-listbox-option.is-active {
+  background: var(--bg-selected);
   color: var(--fg);
 }
 
-select.form-input {
-  appearance: none;
-  background-image: linear-gradient(45deg, transparent 50%, var(--fg-muted) 50%),
-                    linear-gradient(135deg, var(--fg-muted) 50%, transparent 50%);
-  background-position:
-    calc(100% - 14px) calc(50% - 1px),
-    calc(100% - 10px) calc(50% - 1px);
-  background-size: 4px 4px;
-  background-repeat: no-repeat;
-  padding-right: 24px;
+.form-listbox-option.is-selected {
+  color: var(--fg);
+  border-left-color: var(--identity-accent);
+}
+
+.form-listbox-marker {
+  width: 8px;
+  color: var(--identity-accent);
+  visibility: hidden;
+}
+
+.form-listbox-option.is-selected .form-listbox-marker {
+  visibility: visible;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────

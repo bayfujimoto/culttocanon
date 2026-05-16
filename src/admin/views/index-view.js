@@ -5,15 +5,7 @@
 //
 // Groups by kind. Click a row to navigate to its edit route.
 
-import { KIND } from "../../lib/vocabularies.js";
-
-const KIND_SHORT = {
-  essay:    "ess",
-  fragment: "frg",
-  note:     "not",
-  review:   "rev",
-  fiction:  "fic",
-};
+import { KIND, KIND_SHORT } from "../../lib/vocabularies.js";
 
 let _container = null;
 let _posts     = [];
@@ -114,13 +106,14 @@ function renderRow(p) {
   const visIcon = p.visibility === "private"  ? "·"
                 : p.visibility === "unlisted" ? "○"
                 :                                "●";
+  const status = p.status || "?";
   return `
     <li class="index-row" data-post-id="${escapeAttr(p.id)}">
       <span class="index-kind">${KIND_SHORT[p.kind] || "—"}</span>
-      <span class="index-title">${escapeHTML(p.title)}</span>
+      <span class="index-title">${escapeHTML(p.title || p.id || "(untitled)")}</span>
       <span class="index-vis"  title="${escapeAttr(p.visibility)}">${visIcon}</span>
       <span class="index-date">${escapeHTML(date)}</span>
-      <span class="index-status index-status--${escapeAttr(p.status)}">${escapeHTML(p.status[0])}</span>
+      <span class="index-status index-status--${escapeAttr(status)}">${escapeHTML(status[0])}</span>
     </li>
   `;
 }

@@ -27,7 +27,36 @@ import { getAllPosts }    from "../lib/post-loader.js";
 import { setState, getState } from "./state.js";
 
 import { initRouter, navigate, currentRoute } from "./lib/router.js";
-import { initModes, renderAdminKeymap }       from "./lib/modes.js";
+import { initModes, getFocusedPane, flashStatus } from "./lib/modes.js";
+
+// ── Keymap legend (single keystrokes only) + `?` help reference ──────────────
+// j/k/Enter only fire when Index is focused. Ex-commands (:w/:q/:new/:e) live
+// in the help overlay, not the inline legend.
+const ADMIN_KEYMAP_GROUPS = {
+  i: [["j/k", "navigate"], ["Enter", "open"], ["m", "Manuscript"],
+      ["d", "Dispatch"], [":", "cmd"], ["?", "help"]],
+  m: [["Esc", "normal"], ["i", "Index"], ["d", "Dispatch"],
+      [":", "cmd"], ["?", "help"]],
+  d: [["i", "Index"], ["m", "Manuscript"], ["Esc", "reset"],
+      [":", "cmd"], ["?", "help"]],
+};
+
+const ADMIN_HELP = {
+  title: "CULT_TO_CANON — admin keys",
+  sections: [
+    { heading: "Panes", rows: [
+      ["i", "focus Index"], ["m", "focus Manuscript"], ["d", "focus Dispatch"] ] },
+    { heading: "Index", rows: [
+      ["j / k", "move cursor"], ["Enter", "open"] ] },
+    { heading: "Editing", rows: [
+      ["(focus a field)", "enter INSERT"], ["Esc", "leave field → NORMAL"] ] },
+    { heading: "Command (:)", rows: [
+      [":w", "save & commit"], [":q", "close post"], [":new", "new post"],
+      [":e <id|slug>", "open by id/slug"] ] },
+    { heading: "General", rows: [
+      ["Esc", "focus Index / clear error"], ["?", "toggle this help"] ] },
+  ],
+};
 
 import {
   renderIndex,
@@ -53,6 +82,8 @@ renderShell(document.getElementById("app"), {
     { key: "m", label: "Manuscript" },
     { key: "d", label: "Dispatch" },
   ],
+  keymap: { groups: ADMIN_KEYMAP_GROUPS, getFocusedPane },
+  help:   ADMIN_HELP,
 });
 
 // ── Pane bodies ──────────────────────────────────────────────────────────────
@@ -125,27 +156,13 @@ initModes({
   onE: (arg) => {
     const post = byId.get(arg) || allPosts.find(p => p.slug === arg);
     if (post) navigate(`#/edit/${post.id}`);
-    else      flashError(`no piece "${arg}"`);
+    else      flashStatus(`no piece "${arg}"`);
   },
 });
-
-renderAdminKeymap();
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function escape(s) {
   return String(s ?? "").replace(/[&<>"']/g, c => (
     { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
   ));
-}
-
-function flashError(msg) {
-  const el = document.getElementById("shell-status-state");
-  if (!el) return;
-  const original = el.textContent;
-  el.textContent = `! ${msg}`;
-  el.classList.add("shell-status-state--error");
-  setTimeout(() => {
-    el.textContent = original;
-    el.classList.remove("shell-status-state--error");
-  }, 2000);
 }

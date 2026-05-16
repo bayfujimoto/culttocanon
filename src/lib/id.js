@@ -1,18 +1,24 @@
 // ── Post ID generation and parsing ───────────────────────────────────────────
-// Cult to Canon post IDs follow the form:   POST-YYYY-NNN
-//   POST     — fixed prefix (the only content type)
+// Cult to Canon post IDs follow the form:   <SHORT>-YYYY-NNN
+//   <SHORT>  — the post's kind as a 3-letter code, upper-cased
+//              (ESS, FRG, NOT, REV, FIC). See KIND_SHORT in vocabularies.js.
 //   YYYY     — four-digit year the ID was minted (not when the piece will
 //              be published; once minted, the year stays)
 //   NNN      — zero-padded sequence number within that year, starting at 001
 //
-// Example: POST-2026-001, POST-2026-042, POST-2027-001.
+// Example: ESS-2026-001, FRG-2026-042, NOT-2027-001.
 //
-// The sequence is per-year, so the namespace can be reused as time passes
-// without numeric inflation. The admin (Phase 3) will track a counter file
-// to mint new IDs; for hand-authored Phase 1 posts, the writer assigns
-// the next number manually.
+// The sequence is per-year and GLOBAL across kinds (the prefix does not scope
+// it), so the namespace can be reused as time passes without numeric
+// inflation. The prefix is decided from the post's kind at first save (see
+// post-form.js); once a post exists its ID is frozen.
 
-const ID_RE = /^POST-(\d{4})-(\d{3})$/;
+import { KIND_SHORT } from "./vocabularies.js";
+
+// Regex is built from the actual short codes so it can never drift from the
+// map. Group 1 = prefix, 2 = year, 3 = sequence.
+const PREFIXES = Object.values(KIND_SHORT).map(s => s.toUpperCase());
+const ID_RE = new RegExp(`^(${PREFIXES.join("|")})-(\\d{4})-(\\d{3})$`);
 
 export function isPostId(s) {
   return typeof s === "string" && ID_RE.test(s);
@@ -21,18 +27,26 @@ export function isPostId(s) {
 export function parseId(s) {
   const m = ID_RE.exec(s);
   if (!m) return null;
-  return { year: Number(m[1]), n: Number(m[2]) };
+  return { prefix: m[1], year: Number(m[2]), n: Number(m[3]) };
 }
 
-export function formatId(year, n) {
-  return `POST-${String(year).padStart(4, "0")}-${String(n).padStart(3, "0")}`;
+/** Upper-cased 3-letter prefix for a kind; "" for an unknown kind. */
+export function kindToPrefix(kind) {
+  return (KIND_SHORT[kind] || "").toUpperCase();
+}
+
+export function formatId(kind, year, n) {
+  return `${kindToPrefix(kind)}-${String(year).padStart(4, "0")}-${String(n).padStart(3, "0")}`;
 }
 
 /**
- * Given the current year and a list of existing IDs, return the next ID for
- * that year. Used by the Phase-3 admin's `:new` command.
+ * Given the post's kind, the current year, and a list of existing IDs, return
+ * the next ID for that year. Used by the Phase-3 admin's `:new` command.
+ *
+ * The sequence is global per year: the gap-fill scans every ID of `year`
+ * regardless of prefix, so kinds share one numbering line.
  */
-export function nextId(year, existingIds) {
+export function nextId(kind, year, existingIds) {
   const used = new Set(
     existingIds
       .map(parseId)
@@ -41,5 +55,5 @@ export function nextId(year, existingIds) {
   );
   let n = 1;
   while (used.has(n)) n++;
-  return formatId(year, n);
+  return formatId(kind, year, n);
 }

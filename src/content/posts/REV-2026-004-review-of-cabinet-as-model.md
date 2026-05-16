@@ -1,5 +1,5 @@
 ---
-id: POST-2026-004
+id: REV-2026-004
 slug: review-of-cabinet-as-model
 title: "Cabinet, as a Model"
 created: 2026-03-14

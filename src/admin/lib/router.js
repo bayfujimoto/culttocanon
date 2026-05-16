@@ -3,7 +3,7 @@
 // without any additional server config beyond /admin → /admin.html.
 //
 //   #/                          → dashboard (empty Manuscript)
-//   #/edit/POST-2026-001        → edit that post
+//   #/edit/ESS-2026-001         → edit that post
 //   #/new                       → new post form
 
 let handler = null;

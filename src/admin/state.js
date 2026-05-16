@@ -12,9 +12,9 @@
 //   }
 //
 //   PendingChange = {
-//     id:        'POST-2026-001',
+//     id:        'ESS-2026-001',
 //     action:    'add' | 'edit',
-//     filePath:  'src/content/posts/POST-2026-001-…md',
+//     filePath:  'src/content/posts/ESS-2026-001-…md',
 //     content:   '---\n…',
 //   }
 

@@ -7,6 +7,7 @@
 // embeds yet. Phase 4 (iteration) can add what real pieces need.
 
 import { marked } from "marked";
+import { diffLines } from "./line-diff.js";
 
 marked.setOptions({
   gfm:       true,
@@ -45,6 +46,45 @@ export function renderPost(post, container) {
       <div class="post-body">${marked.parse(post.body || "")}</div>
     </article>
   `;
+}
+
+/**
+ * Render an inline unified diff of a prior `version` against the current
+ * `post` body into `container`. `version` = { revised, words, body }.
+ * `onClose` is invoked when the banner's [×] is clicked (Esc is wired by the
+ * caller). Replaces all contents of `container`.
+ */
+export function renderDiff(post, version, container, { onClose } = {}) {
+  if (!post || !version) {
+    container.innerHTML = "";
+    return;
+  }
+
+  const rows = diffLines(version.body || "", post.body || "");
+  const SIGIL = { ctx: " ", add: "+", del: "-" };
+
+  const lines = rows.map(r => {
+    const sigil = SIGIL[r.type] || " ";
+    return `<div class="diff-line diff-line--${r.type}">` +
+           `<span class="diff-sigil">${sigil}</span>` +
+           `<span class="diff-text">${escapeHTML(r.text) || "&nbsp;"}</span>` +
+           `</div>`;
+  }).join("");
+
+  const from = version.revised || "earlier";
+
+  container.innerHTML = `
+    <article class="post post--diff">
+      <div class="diff-banner">
+        <span class="diff-banner-label">diff: ${escapeHTML(from)} → current</span>
+        <button type="button" class="diff-banner-close" id="diff-close" title="back to reading (Esc)">×</button>
+      </div>
+      <div class="diff-body">${lines}</div>
+    </article>
+  `;
+
+  const btn = container.querySelector("#diff-close");
+  if (btn && onClose) btn.addEventListener("click", onClose);
 }
 
 function formatDate(d) {

@@ -31,13 +31,21 @@ const FIELD_ORDER = [
 
 export function serializePost(post) {
   const fm = buildFrontMatter(post);
-  const yamlStr = yaml.dump(fm, {
+  let yamlStr = yaml.dump(fm, {
     lineWidth:   -1,
     quotingType: '"',
     forceQuotes: false,
     flowLevel:   -1,
     sortKeys:    false,
   });
+
+  // js-yaml quotes a bare YYYY-MM-DD because it would otherwise round-trip as a
+  // timestamp. The files in src/content/posts/ use the unquoted form, so strip
+  // the quotes on date-only values for the known date keys to keep diffs clean.
+  yamlStr = yamlStr.replace(
+    /^(created|revised): "(\d{4}-\d{2}-\d{2})"$/gm,
+    "$1: $2"
+  );
 
   const body = (post.body || "").replace(/\s+$/, ""); // trim trailing whitespace
 
@@ -74,9 +82,13 @@ function shouldEmit(val) {
 }
 
 function normalize(key, val) {
-  // Dates → ISO date string (YYYY-MM-DD)
+  // Dates → ISO date string (YYYY-MM-DD). serializePost() strips the quotes
+  // js-yaml adds around the known date keys so the output stays unquoted.
   if (val instanceof Date) {
     return val.toISOString().slice(0, 10);
+  }
+  if (typeof val === "string" && /^\d{4}-\d{2}-\d{2}T/.test(val)) {
+    return val.slice(0, 10);
   }
   return val;
 }

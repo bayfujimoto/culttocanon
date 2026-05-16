@@ -89,7 +89,7 @@
 
 .browse-row {
   display: grid;
-  grid-template-columns: 36px 1fr auto auto;
+  grid-template-columns: 36px 1fr auto;
   gap: 10px;
   align-items: baseline;
   padding: 6px 8px;
@@ -119,6 +119,11 @@
   border-left-color: var(--identity-accent);
 }
 
+/* Tree mode drops the redundant kind column (rows are grouped by kind) */
+.browse-row--no-kind {
+  grid-template-columns: 1fr auto;
+}
+
 .browse-kind {
   font-size: var(--text-xs);
   letter-spacing: 0.06em;
@@ -129,8 +134,8 @@
 
 .browse-title {
   color: var(--fg);
-  font-family: var(--font-serif);
-  font-size: 1.0rem;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
   line-height: 1.3;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -146,20 +151,6 @@
   font-size: var(--text-xs);
   letter-spacing: 0.04em;
 }
-
-.browse-status {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  border: 1px solid currentColor;
-  padding: 0 4px;
-  border-radius: 1px;
-  line-height: 1.4;
-}
-
-.browse-status--draft     { color: var(--accent-yellow); }
-.browse-status--evergreen { color: var(--accent-green); }
-.browse-status--abandoned { color: var(--fg-dim); text-decoration: line-through; }
 
 .browse-empty {
   color: var(--fg-dim);
@@ -270,6 +261,17 @@
   opacity: 0.7;
 }
 
+.marginalia-version {
+  color: var(--accent-blue);
+  text-decoration: none;
+  border-bottom: 1px dotted currentColor;
+  font-variant-numeric: tabular-nums;
+}
+
+.marginalia-version:hover {
+  opacity: 0.7;
+}
+
 .marginalia-empty {
   color: var(--fg-dim);
   text-align: center;
@@ -281,4 +283,77 @@
   display: block;
   margin-top: 4px;
   font-size: var(--text-xs);
+}
+
+/* ── Version diff (Read pane) ─────────────────────────────────────────────── */
+.post--diff {
+  font-family: var(--font-mono);
+}
+
+.diff-banner {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  margin-bottom: 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-faint);
+  font-size: var(--text-xs);
+  z-index: 1;
+}
+
+.diff-banner-label {
+  color: var(--fg-muted);
+  letter-spacing: 0.04em;
+}
+
+.diff-banner-close {
+  appearance: none;
+  background: none;
+  border: 1px solid var(--border-faint);
+  color: var(--fg-muted);
+  font-family: inherit;
+  font-size: var(--text-xs);
+  line-height: 1;
+  padding: 2px 6px;
+  cursor: pointer;
+}
+
+.diff-banner-close:hover {
+  color: var(--fg);
+  border-color: var(--border-strong);
+}
+
+.diff-body {
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.diff-line {
+  display: flex;
+  gap: 8px;
+}
+
+.diff-sigil {
+  flex: 0 0 1ch;
+  user-select: none;
+  text-align: center;
+  opacity: 0.6;
+}
+
+.diff-line--ctx { color: var(--fg-dim); }
+
+.diff-line--add {
+  color: var(--accent-green);
+  background: color-mix(in srgb, var(--accent-green) 8%, transparent);
+}
+
+.diff-line--del {
+  color: var(--accent-red);
+  background: color-mix(in srgb, var(--accent-red) 8%, transparent);
 }

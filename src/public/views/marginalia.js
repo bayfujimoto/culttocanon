@@ -2,7 +2,7 @@
 // Paratext for the currently-open post. Shows status, kind, register, dates,
 // confidence, subjects, and links. When no post is open, shows a brief hint.
 
-export function renderMarginalia(container, post, { allPosts, onSelect } = {}) {
+export function renderMarginalia(container, post, { allPosts, onSelect, versions, onVersionSelect } = {}) {
   if (!container) return;
 
   if (!post) {
@@ -24,6 +24,13 @@ export function renderMarginalia(container, post, { allPosts, onSelect } = {}) {
   rows.push(["created",    formatDate(post.created)]);
   if (post.revised) rows.push(["revised", formatDate(post.revised)]);
   rows.push(["length",     `${post.length} words`]);
+
+  if (versions?.length) {
+    const verHtml = versions.map((v, i) =>
+      `<a class="marginalia-version" data-idx="${i}" href="#v${i}">${escapeHTML(v.revised || "earlier")} · ${formatWords(v.words)}</a>`
+    ).join("<br>");
+    rows.push(["versions", verHtml]);
+  }
 
   if (post.subjects?.length) {
     rows.push(["subjects",
@@ -72,6 +79,22 @@ export function renderMarginalia(container, post, { allPosts, onSelect } = {}) {
       });
     });
   }
+
+  // Wire version clicks → show a diff of that version against the current text
+  if (onVersionSelect && versions?.length) {
+    container.querySelectorAll(".marginalia-version").forEach(a => {
+      a.addEventListener("click", (e) => {
+        e.preventDefault();
+        const v = versions[Number(a.dataset.idx)];
+        if (v) onVersionSelect(v);
+      });
+    });
+  }
+}
+
+function formatWords(n) {
+  const w = Number(n) || 0;
+  return w >= 1000 ? `${(w / 1000).toFixed(1)}k w` : `${w} w`;
 }
 
 function formatDate(d) {

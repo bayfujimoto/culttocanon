@@ -9,7 +9,7 @@
 // Payload shape (matches the Netlify function):
 //   {
 //     files:   [{ filePath: "src/content/posts/...md", content: "---\n..." }],
-//     message: "add POST-2026-005",
+//     message: "add ESS-2026-005",
 //   }
 
 import { mkdirSync, writeFileSync } from "fs";

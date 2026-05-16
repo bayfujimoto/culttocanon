@@ -3,7 +3,7 @@
 // block delimited by `---` lines:
 //
 //   ---
-//   id: POST-2026-001
+//   id: ESS-2026-001
 //   title: On the Backrooms as Canon
 //   created: 2026-05-15
 //   ---
@@ -32,7 +32,7 @@ export function parseFrontMatter(raw) {
     data = yaml.load(yamlText) ?? {};
   } catch (err) {
     console.warn("[front-matter] YAML parse error:", err.message);
-    data = {};
+    return { data: {}, body, error: err.message };
   }
 
   return { data, body };

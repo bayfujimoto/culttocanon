@@ -24,7 +24,8 @@ import "./styles.css";
 
 import { renderShell }      from "../shell/render-shell.js";
 import { getPublicPosts }   from "../lib/post-loader.js";
-import { renderPost }       from "../lib/post-renderer.js";
+import { renderPost, renderDiff } from "../lib/post-renderer.js";
+import { getHistoryById }   from "../lib/history.js";
 import {
   renderBrowse,
   setSelected   as setBrowseSelected,
@@ -34,7 +35,36 @@ import {
 } from "./views/browse.js";
 import { renderMarginalia } from "./views/marginalia.js";
 import { initRouter, navigate } from "./lib/router.js";
-import { initModes }        from "./lib/modes.js";
+import { initModes, getFocusedPane, flashStatus } from "./lib/modes.js";
+
+// ── Keymap legend (single keystrokes only) + `?` help reference ──────────────
+// Per-pane groups: j/k/Enter/t only fire when Browse is focused, so they appear
+// only in group `b`. Ex-commands (:e/:q/:home) live in the help overlay, not
+// the inline legend.
+const PUBLIC_KEYMAP_GROUPS = {
+  b: [["j/k", "navigate"], ["Enter", "open"], ["t", "tree/flat"],
+      ["r", "Read"], ["m", "Marginalia"], [":", "cmd"], ["?", "help"]],
+  r: [["b", "Browse"], ["m", "Marginalia"], ["Esc", "reset"],
+      [":", "cmd"], ["?", "help"]],
+  m: [["b", "Browse"], ["r", "Read"], ["Esc", "reset"],
+      [":", "cmd"], ["?", "help"]],
+};
+
+const PUBLIC_HELP = {
+  title: "CULT_TO_CANON — keys",
+  sections: [
+    { heading: "Panes", rows: [
+      ["b", "focus Browse"], ["r", "focus Read"], ["m", "focus Marginalia"] ] },
+    { heading: "Browse", rows: [
+      ["j / k", "move cursor"], ["Enter", "open piece"],
+      ["t", "toggle tree / flat"] ] },
+    { heading: "Command (:)", rows: [
+      [":e <id|slug>", "open a piece"], [":q", "close current piece"],
+      [":home", "return to /"] ] },
+    { heading: "General", rows: [
+      ["Esc", "focus Browse / clear error"], ["?", "toggle this help"] ] },
+  ],
+};
 
 // ── Shell ────────────────────────────────────────────────────────────────────
 renderShell(document.getElementById("app"), {
@@ -44,6 +74,8 @@ renderShell(document.getElementById("app"), {
     { key: "r", label: "Read" },
     { key: "m", label: "Marginalia" },
   ],
+  keymap: { groups: PUBLIC_KEYMAP_GROUPS, getFocusedPane },
+  help:   PUBLIC_HELP,
 });
 
 // ── Pane bodies ──────────────────────────────────────────────────────────────
@@ -57,13 +89,33 @@ const bySlug = new Map(posts.map(p => [p.slug, p]));
 const byId   = new Map(posts.map(p => [p.id,   p]));
 
 let currentPost = null;
+let diffOpen    = false;   // true while the Read pane shows a version diff
 
 // ── Render helpers (do not touch the URL) ────────────────────────────────────
 function showPost(post) {
   currentPost = post;
+  diffOpen    = false;
   renderPost(post, readBody);
-  renderMarginalia(margBody, post, { allPosts: posts, onSelect: openPost });
+  renderMarginalia(margBody, post, {
+    allPosts:        posts,
+    onSelect:        openPost,
+    versions:        getHistoryById(post.id).versions,
+    onVersionSelect: (version) => showDiff(post, version),
+  });
   setBrowseSelected(post.id);
+}
+
+// Show an inline unified diff of `version` against the current post body.
+// Esc or the banner's [×] returns to the normal reading view.
+function showDiff(post, version) {
+  diffOpen = true;
+  renderDiff(post, version, readBody, { onClose: closeDiff });
+}
+
+function closeDiff() {
+  if (!diffOpen) return;
+  diffOpen = false;
+  if (currentPost) renderPost(currentPost, readBody);
 }
 
 function showEmpty() {
@@ -123,20 +175,9 @@ initModes({
   onCommandE: (arg) => {
     const post = bySlug.get(arg) || byId.get(arg);
     if (post) openPost(post);
-    else {
-      // Flash an error via statusbar
-      const stateEl = document.getElementById("shell-status-state");
-      if (stateEl) {
-        const original = stateEl.textContent;
-        stateEl.textContent = `! no piece "${arg}"`;
-        stateEl.classList.add("shell-status-state--error");
-        setTimeout(() => {
-          stateEl.textContent = original;
-          stateEl.classList.remove("shell-status-state--error");
-        }, 2000);
-      }
-    }
+    else flashStatus(`no piece "${arg}"`);
   },
   onCommandQ:    () => navigate("/"),
   onCommandHome: () => navigate("/"),
+  onReset:       () => closeDiff(),
 });

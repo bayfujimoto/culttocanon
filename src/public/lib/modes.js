@@ -10,6 +10,13 @@
 // Vim modality is desktop-only. On mobile (<=700px) all keyboard handling is
 // short-circuited; tap and mouse carry the interaction model.
 
+import {
+  rerenderKeymap,
+  toggleHelp,
+  closeHelp,
+  isHelpOpen,
+} from "../../shell/render-shell.js";
+
 const COMMANDS = [
   { name: "e",    needsArg: true,  hint: "open <id-or-slug>" },
   { name: "q",    needsArg: false, hint: "close current piece" },
@@ -36,6 +43,7 @@ function isMobile() {
  *     onCommandE(arg),           // `:e <arg>`
  *     onCommandQ(),              // `:q`
  *     onCommandHome(),           // `:home`
+ *     onReset(),                 // Esc pressed (no overlay open)
  *   }
  */
 export function initModes(h = {}) {
@@ -72,6 +80,26 @@ function onKeyDown(e) {
   }
 
   // normal mode
+  // Help overlay toggle. This document handler is capture-phase, so it runs
+  // before the overlay's own keydown — toggleHelp() handles both open and
+  // close from here; the overlay's listener is a redundant safety net.
+  if (e.key === "?") {
+    toggleHelp();
+    e.preventDefault();
+    return;
+  }
+
+  // Esc — if the overlay is open, close it; otherwise return focus to the
+  // primary pane (Browse) and clear any error flash.
+  if (e.key === "Escape") {
+    e.preventDefault();
+    if (isHelpOpen()) { closeHelp(); return; }
+    clearErrorFlash();
+    handlers.onReset?.();
+    setFocusedPane("b");
+    return;
+  }
+
   // Pane switching
   if (e.key === "b" || e.key === "r" || e.key === "m") {
     setFocusedPane(e.key);
@@ -177,19 +205,38 @@ function executeCommand(raw) {
   }
 }
 
-function flashStatus(msg) {
-  // Briefly show an error message in the state cell after command mode exits.
-  setTimeout(() => {
+// ── Error flash ──────────────────────────────────────────────────────────────
+// One cancelable timer. The state cell's resting value is always "⏵ ready"
+// (the shell template and exitCommandMode both set it), so we reset to that
+// rather than capturing-and-restoring — which let a mid-flash Esc restore
+// stale text. Exported so every flash path (including the entry file) shares
+// this single cancelable mechanism.
+let flashTimer = null;
+
+export function flashStatus(msg) {
+  if (flashTimer) clearTimeout(flashTimer);
+  // Defer one tick so the message lands in the rebuilt #shell-status-state
+  // after command mode exits (executeCommand runs before exitCommandMode).
+  flashTimer = setTimeout(() => {
     const stateEl = document.getElementById("shell-status-state");
-    if (!stateEl) return;
-    const original = stateEl.textContent;
+    if (!stateEl) { flashTimer = null; return; }
     stateEl.textContent = `! ${msg}`;
     stateEl.classList.add("shell-status-state--error");
-    setTimeout(() => {
-      stateEl.textContent = original;
+    flashTimer = setTimeout(() => {
+      stateEl.textContent = "⏵ ready";
       stateEl.classList.remove("shell-status-state--error");
+      flashTimer = null;
     }, 2000);
   }, 0);
+}
+
+export function clearErrorFlash() {
+  if (flashTimer) { clearTimeout(flashTimer); flashTimer = null; }
+  const el = document.getElementById("shell-status-state");
+  if (el && el.classList.contains("shell-status-state--error")) {
+    el.classList.remove("shell-status-state--error");
+    el.textContent = "⏵ ready";
+  }
 }
 
 // ── Mode + pane state ────────────────────────────────────────────────────────
@@ -208,6 +255,7 @@ function setFocusedPane(key) {
     p.classList.toggle("is-focused", p.dataset.pane === key);
   });
   handlers.onFocusChange?.(key);
+  rerenderKeymap();
 }
 
 export function getMode()        { return mode; }

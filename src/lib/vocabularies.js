@@ -23,6 +23,16 @@ export const KIND = [
   "fiction",
 ];
 
+// 3-letter code per kind. Used by the index/browse "kind" column AND as the
+// post-ID prefix (see src/lib/id.js). One source of truth so they never drift.
+export const KIND_SHORT = {
+  essay:    "ess",
+  fragment: "frg",
+  note:     "not",
+  review:   "rev",
+  fiction:  "fic",
+};
+
 export const REGISTER = [
   "academic",
   "belletristic",
