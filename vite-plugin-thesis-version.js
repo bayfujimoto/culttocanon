@@ -12,7 +12,7 @@
 // the thesis version in dev requires restarting the dev server. For builds
 // (the production case) the value is correct as of the build.
 
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { parseFrontMatter } from "./src/lib/front-matter.js";
 
@@ -26,16 +26,24 @@ export function thesisVersionPlugin() {
     config() {
       const dir = resolve(process.cwd(), POSTS_DIR);
 
-      let files;
+      // As of the image-pipeline migration (260516), posts live in folders
+      // rather than flat .md files: src/content/posts/<slug>/post.md. Walk
+      // one level deep and read each folder's post.md.
+      let postFiles;
       try {
-        files = readdirSync(dir).filter(f => f.endsWith(".md"));
+        const entries = readdirSync(dir);
+        postFiles = entries
+          .map(name => join(dir, name, "post.md"))
+          .filter(p => {
+            try { return statSync(p).isFile(); } catch { return false; }
+          });
       } catch (e) {
         throw new Error(`thesis-version: cannot read ${POSTS_DIR}: ${e.message}`);
       }
 
       let version = null;
-      for (const f of files) {
-        const { data } = parseFrontMatter(readFileSync(join(dir, f), "utf8"));
+      for (const p of postFiles) {
+        const { data } = parseFrontMatter(readFileSync(p, "utf8"));
         if (data.id !== THESIS_ID) continue;
 
         if (!SEMVER_RE.test(String(data.version || ""))) {

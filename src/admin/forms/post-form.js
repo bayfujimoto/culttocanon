@@ -18,10 +18,11 @@
 
 import { STATUS, KIND, REGISTER, CONFIDENCE, VISIBILITY } from "../../lib/vocabularies.js";
 import { slugify } from "../../lib/slug.js";
-import { serializePost, filePathFor } from "../lib/serializer.js";
+import { serializePost, filePathFor, folderNameFor } from "../lib/serializer.js";
 import { stageChange } from "../state.js";
 import { createListbox } from "./listbox.js";
 import { parseId, formatId } from "../../lib/id.js";
+import { addImageToQueue } from "../lib/image-queue.js";
 
 let _container = null;
 let _post      = null;
@@ -81,6 +82,8 @@ export function renderForm(container, post, { isNew = false } = {}) {
   wireSlugAutoFill();
   // Date fields: validate YYYY-MM-DD on blur
   wireDateValidation();
+  // Paste / drop image upload on the body textarea
+  wireImageUpload();
   // Mark dirty on any change. Hidden inputs (listbox value carriers) dispatch
   // a bubbling `change`, so this loop catches them too.
   container.querySelectorAll("input, textarea, select").forEach(el => {
@@ -233,6 +236,106 @@ function isValidISODate(s) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
   const d = new Date(s + "T00:00:00Z");
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
+}
+
+// ── Wire image upload on the body textarea ──────────────────────────────────
+// Paste an image from the clipboard, or drag an image file onto the textarea,
+// and we:
+//   1. queue the binary alongside the post for commit (image-queue.js)
+//   2. insert a markdown reference `![](images/<name>)` at the caret
+//   3. mark the form dirty so the change rides the next :update
+//
+// The post's image folder is derived from the form's current id+slug — for
+// a new post being authored, this works as soon as those fields are filled
+// in. If the author pastes before filling them in, we flash a hint.
+function wireImageUpload() {
+  const body = _container.querySelector("#field-body");
+  if (!body) return;
+
+  // Compute the post folder from the form's current state (so it picks up
+  // unsaved edits to id or slug). Returns null if either is missing.
+  const folderForCurrent = () => {
+    const id   = (_container.querySelector("#field-id")?.value || "").trim();
+    const slug = (_container.querySelector("#field-slug")?.value || "").trim();
+    if (!id || !slug) return null;
+    return folderNameFor({ id, slug });
+  };
+
+  body.addEventListener("paste", async (e) => {
+    const items = Array.from(e.clipboardData?.items || []);
+    const imageItems = items.filter(i => i.kind === "file" && /^image\//.test(i.type));
+    if (imageItems.length === 0) return;   // not an image paste — let it through
+
+    e.preventDefault();
+    const folder = folderForCurrent();
+    if (!folder) {
+      flash("set title + slug before uploading images");
+      return;
+    }
+
+    for (const item of imageItems) {
+      const blob = item.getAsFile();
+      if (!blob) continue;
+      const res = await addImageToQueue(blob, folder);
+      if (res?.error) {
+        flash(res.error);
+        continue;
+      }
+      if (res?.markdownRef) {
+        insertAtCaret(body, `![](${res.markdownRef})`);
+      }
+    }
+    _dirty = true;
+  });
+
+  body.addEventListener("dragover", (e) => {
+    if (Array.from(e.dataTransfer?.types || []).includes("Files")) {
+      e.preventDefault();
+      body.classList.add("is-dropping");
+    }
+  });
+
+  body.addEventListener("dragleave", () => {
+    body.classList.remove("is-dropping");
+  });
+
+  body.addEventListener("drop", async (e) => {
+    body.classList.remove("is-dropping");
+    const files = Array.from(e.dataTransfer?.files || []).filter(f => /^image\//.test(f.type));
+    if (files.length === 0) return;
+
+    e.preventDefault();
+    const folder = folderForCurrent();
+    if (!folder) {
+      flash("set title + slug before uploading images");
+      return;
+    }
+
+    for (const file of files) {
+      const res = await addImageToQueue(file, folder, { fromFilename: file.name });
+      if (res?.error) {
+        flash(res.error);
+        continue;
+      }
+      if (res?.markdownRef) {
+        insertAtCaret(body, `![](${res.markdownRef})`);
+      }
+    }
+    _dirty = true;
+  });
+}
+
+// Splice `text` into a textarea at the current caret, advance the caret
+// past the inserted text, and dispatch an `input` event so the existing
+// dirty-tracking listener fires.
+function insertAtCaret(textarea, text) {
+  const start = textarea.selectionStart;
+  const end   = textarea.selectionEnd;
+  const prev  = textarea.value;
+  textarea.value = prev.slice(0, start) + text + prev.slice(end);
+  const newPos = start + text.length;
+  textarea.selectionStart = textarea.selectionEnd = newPos;
+  textarea.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
 // ── Read form back into a Post object ────────────────────────────────────────

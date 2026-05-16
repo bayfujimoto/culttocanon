@@ -1,0 +1,56 @@
+/* ── Runtime image-reveal styles ──────────────────────────────────────────
+   Applies to images served by the build's image-dither plugin and any
+   canvases the runtime enhancer swaps in for them.
+
+   The dither PNG is served at its natural width via the markdown renderer
+   (typically 600px wide 1×). CSS scales it down to the body column when
+   needed, and `image-rendering: pixelated` keeps the dither cells crisp at
+   any size. See docs/image-pipeline-plan_260516.md §6.
+   ───────────────────────────────────────────────────────────────────────── */
+
+.ctc-dither,
+.ctc-dither-canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 1.25em auto;
+  /* Crisp scaling under both up- and down-sample. Browsers diverge on the
+     keyword; declare both for compatibility. */
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.ctc-dither-canvas {
+  cursor: pointer;
+}
+
+.ctc-dither-canvas:focus-visible {
+  outline: 1px solid var(--accent-blue, #268bd2);
+  outline-offset: 2px;
+}
+
+/* `.full` escapes the body column. The post body is set to max-width: 62ch
+   in post-body.css; for images that should bleed wider we override that
+   constraint via a negative margin tied to the surrounding viewport.
+   Stays inside the Read pane (.shell-pane-body), not the page. */
+.ctc-image--full {
+  max-width: none;
+  width: 100%;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+/* Visually-hidden caption used to carry alt text to screen readers after a
+   canvas has replaced the original <img>. Same pattern as the Tailwind
+   `sr-only` utility. */
+.ctc-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

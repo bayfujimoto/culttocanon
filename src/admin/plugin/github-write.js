@@ -8,9 +8,17 @@
 //
 // Payload shape (matches the Netlify function):
 //   {
-//     files:   [{ filePath: "src/content/posts/...md", content: "---\n..." }],
+//     files: [
+//       { filePath: "src/content/posts/.../post.md",  content: "---\n..." },                // text
+//       { filePath: "src/content/posts/.../foo.jpg",  content: "<base64>", binary: true }   // binary
+//     ],
 //     message: "add ESS-2026-005",
 //   }
+//
+// Binary file entries (typically image uploads from the body editor's paste
+// or drag handlers; see src/admin/lib/image-queue.js) carry the file's bytes
+// as a base64 string under `content` with `binary: true`. The middleware
+// decodes them to a Buffer before writing.
 
 import { mkdirSync, writeFileSync } from "fs";
 import { resolve, dirname } from "path";
@@ -58,13 +66,20 @@ export function githubWritePlugin() {
 
         try {
           const written = [];
-          for (const { filePath, content } of files) {
+          for (const { filePath, content, binary } of files) {
             if (!filePath || typeof content !== "string") {
-              throw new Error("Each file needs filePath and content");
+              throw new Error("Each file needs filePath and a string content");
             }
             const abs = resolve(process.cwd(), filePath);
             mkdirSync(dirname(abs), { recursive: true });
-            writeFileSync(abs, content, "utf8");
+            if (binary) {
+              // Base64-decoded bytes — used for image uploads from the
+              // body editor; see src/admin/lib/image-queue.js.
+              const buf = Buffer.from(content, "base64");
+              writeFileSync(abs, buf);
+            } else {
+              writeFileSync(abs, content, "utf8");
+            }
             written.push(filePath);
           }
           res.writeHead(200);

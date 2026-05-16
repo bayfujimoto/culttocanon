@@ -5,3 +5,17 @@ dist
 .env.local
 .netlify
 *.log
+
+# ── Image dither derivatives ───────────────────────────────────────────────
+# Each source image in src/content/posts/<slug>/images/ produces eight
+# derivative files via build/vite-plugin-image-dither.js. They're build
+# artifacts: regenerated on every dev-server start and every `vite build`,
+# so they don't belong in git. Only the source image is committed.
+src/content/posts/**/images/*.dither.png
+src/content/posts/**/images/*.dither@2x.png
+src/content/posts/**/images/*.quantBw.png
+src/content/posts/**/images/*.quantBw@2x.png
+src/content/posts/**/images/*.quant.png
+src/content/posts/**/images/*.quant@2x.png
+src/content/posts/**/images/*.optimized.jpg
+src/content/posts/**/images/*.optimized@2x.jpg

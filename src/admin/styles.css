@@ -377,6 +377,14 @@ textarea.form-input {
   box-shadow: inset 0 0 0 1px var(--accent-amber);
 }
 
+/* Body textarea drag-over state — wireImageUpload toggles this class while a
+   file is being dragged over the body field. The cyan flash matches the
+   accent the admin uses for "active interaction" generally. */
+textarea.form-input.is-dropping {
+  border-color: var(--accent-cyan);
+  box-shadow: inset 0 0 0 1px var(--accent-cyan);
+}
+
 /* ── Listbox (custom <select> replacement; see forms/listbox.js) ──────────── */
 
 .form-listbox-wrap {

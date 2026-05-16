@@ -1,8 +1,14 @@
 // ── Post loader ──────────────────────────────────────────────────────────────
-// Loads every markdown file under src/content/posts/ at build time via Vite's
+// Loads every post under src/content/posts/ at build time via Vite's
 // `import.meta.glob` and returns them as fully-parsed Post objects. Validation
 // warnings print to the console — non-fatal in Phase 1 so we can see exactly
 // where stub posts diverge from the schema.
+//
+// As of the image-pipeline change (260516), each post is a *folder* rather
+// than a single .md file: `src/content/posts/<slug>/post.md`, with images
+// living as siblings under `<slug>/images/`. The folder layout lets the
+// build's image-dither plugin co-locate derived assets with their source,
+// and lets post deletion remove all associated images in one tree.
 //
 // The Post object shape (after validation):
 //   {
@@ -23,7 +29,8 @@
 //     epigraph:   string | null,
 //     length:     number,        // word count of body (auto-computed)
 //     body:       string,        // markdown body
-//     _file:      "/src/content/posts/ESS-2026-001-…md",
+//     folder:     "ESS-2026-001-on-the-backrooms-as-canon",  // post directory name
+//     _file:      "/src/content/posts/ESS-2026-001-…/post.md",
 //   }
 
 import { parseFrontMatter } from "./front-matter.js";
@@ -31,9 +38,9 @@ import { ENUMS } from "./vocabularies.js";
 import { isPostId } from "./id.js";
 import { wordCount } from "./history.js";
 
-// Vite glob: every .md file under src/content/posts/, eagerly imported as raw
-// strings. New posts trigger an HMR reload.
-const RAW_POSTS = import.meta.glob("/src/content/posts/*.md", {
+// Vite glob: each post's `post.md` lives under src/content/posts/<slug>/.
+// Eagerly imported as raw strings. New posts trigger an HMR reload.
+const RAW_POSTS = import.meta.glob("/src/content/posts/*/post.md", {
   eager: true,
   query: "?raw",
   import: "default",
@@ -110,6 +117,11 @@ function parseOne(file, raw) {
   const subjects = Array.isArray(data.subjects) ? data.subjects : [];
   const links    = Array.isArray(data.links)    ? data.links    : [];
 
+  // `folder` is the post's directory name under src/content/posts/, e.g.
+  // "ESS-2026-001-on-the-backrooms-as-canon". The image renderer uses this
+  // to build URLs to derived assets (image.dither.png and friends).
+  const folder = folderFromFile(file);
+
   return {
     id:         data.id,
     version:    typeof data.version === "string" ? data.version : "0.1.0",
@@ -128,8 +140,16 @@ function parseOne(file, raw) {
     epigraph:   data.epigraph ?? null,
     length:     wordCount(body),
     body:       body.trim(),
+    folder,
     _file:      file,
   };
+}
+
+// Extract the post's directory name from its full file path. Given
+// "/src/content/posts/ESS-2026-001-…/post.md" returns "ESS-2026-001-…".
+function folderFromFile(file) {
+  const parts = file.split("/");
+  return parts[parts.length - 2] || "";
 }
 
 function coerceDate(v) {
@@ -142,5 +162,9 @@ function coerceDate(v) {
 }
 
 function warn(file, msg) {
-  console.warn(`[post-loader] ${file.split("/").pop()}: ${msg}`);
+  // Show "<folder>/post.md" rather than just "post.md" so identical filenames
+  // across many post folders stay distinguishable in the console.
+  const parts = file.split("/");
+  const tail  = parts.slice(-2).join("/");
+  console.warn(`[post-loader] ${tail}: ${msg}`);
 }

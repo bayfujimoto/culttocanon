@@ -95,9 +95,23 @@ function normalize(key, val) {
 }
 
 /**
- * Build the file path under src/content/posts/ for a given post. Same
- * convention used by post-loader: {ID}-{slug}.md.
+ * Build the file path under src/content/posts/ for a given post.
+ *
+ * As of the image-pipeline migration (260516), each post lives in its own
+ * folder named `<ID>-<slug>/`, with the markdown body at `post.md` and any
+ * uploaded images under `images/`. This convention matches what the
+ * post-loader resolves via `import.meta.glob`. See
+ * docs/image-pipeline-plan_260516.md §2.
  */
 export function filePathFor(post) {
-  return `src/content/posts/${post.id}-${post.slug}.md`;
+  return `src/content/posts/${post.id}-${post.slug}/post.md`;
+}
+
+/**
+ * Build the folder name for a post — same convention as filePathFor but
+ * without the `/post.md` tail. Useful for the admin's image-upload flow,
+ * which needs the folder to namespace queued images.
+ */
+export function folderNameFor(post) {
+  return `${post.id}-${post.slug}`;
 }

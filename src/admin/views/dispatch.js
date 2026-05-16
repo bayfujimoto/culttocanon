@@ -24,6 +24,7 @@ import {
 } from "../../lib/history.js";
 import { bumpVersion, bumpCategoryBetween } from "../lib/version.js";
 import { openBumpPicker }                   from "../lib/bump-picker.js";
+import { getQueueAsFiles, clearQueue, queueSize } from "../lib/image-queue.js";
 
 const HISTORY_LIMIT = 5;
 const sessionCommits = [];
@@ -56,8 +57,13 @@ export function initDispatch(container, callbacks = {}) {
  */
 export function commitWithPicker() {
   const { pendingChanges, allPosts } = getState();
+  // Both text changes and queued images count as "things to commit". An
+  // author could in theory queue an image without yet editing the body —
+  // the bump-picker still wants to run because the image ride along with
+  // the existing post's edit. v1 assumes at least one pending text change
+  // accompanies any image queue, so guard on text changes here.
   if (!pendingChanges.length) {
-    flash("nothing to commit");
+    flash(queueSize() > 0 ? "queued images need a body edit to commit" : "nothing to commit");
     return;
   }
   openBumpPicker(pendingChanges, allPosts, {
@@ -90,6 +96,9 @@ export async function triggerCommit(category) {
 
   const snapshot = pendingChanges.slice();
   const files    = snapshot.map(c => ({ filePath: c.filePath, content: c.content }));
+  // Snapshot the image queue at this moment too. Each entry becomes a
+  // binary file in the commit; the queue is cleared on success below.
+  const imageFiles = getQueueAsFiles();
 
   // Per-file commit headers, built as each change is processed.
   // Format: `{id} v{version} [{category}]`.
@@ -153,15 +162,20 @@ export async function triggerCommit(category) {
     headers.push(`${change.id} v${newVersion} [${category}]`);
   }
 
-  const message = headers.length > 0
+  const imageCount = imageFiles.length;
+  const imageNote  = imageCount > 0 ? ` + ${imageCount} image${imageCount > 1 ? "s" : ""}` : "";
+  const message    = (headers.length > 0
     ? headers.join("; ")
-    : `commit ${pendingChanges.length} changes`;
+    : `commit ${pendingChanges.length} changes`) + imageNote;
 
   setState({ status: "saving", statusMessage: "committing…" });
 
   try {
+    // Concatenate text and binary file entries. Order doesn't matter to
+    // the Git Data API — blobs are uploaded in parallel and the tree is
+    // built from their SHAs.
     const result = await commitAll({
-      files,
+      files: [...files, ...imageFiles],
       message,
     });
 
@@ -174,13 +188,16 @@ export async function triggerCommit(category) {
         count:     snapshot.length,
         adds:      addsCount,
         edits:     editsCount,
+        images:    imageCount,
         mode:      result.mode,
         ok:        true,
       });
       clearPending();
+      clearQueue();
+      const summary = `committed ${snapshot.length} change${snapshot.length > 1 ? "s" : ""}` + imageNote;
       setState({
         status:        "saved",
-        statusMessage: `committed ${snapshot.length} change${snapshot.length > 1 ? "s" : ""}`,
+        statusMessage: summary,
       });
       setTimeout(() => setState({ status: null, statusMessage: "" }), 2500);
     } else {
@@ -189,6 +206,7 @@ export async function triggerCommit(category) {
         count:     snapshot.length,
         adds:      addsCount,
         edits:     editsCount,
+        images:    imageCount,
         ok:        false,
         error:     result.error,
       });
@@ -198,6 +216,7 @@ export async function triggerCommit(category) {
     sessionCommits.unshift({
       timestamp: new Date(),
       count:     snapshot.length,
+      images:    imageCount,
       ok:        false,
       error:     e.message,
     });
@@ -315,8 +334,9 @@ function renderCommits() {
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function summarize(c) {
   const parts = [];
-  if (c.adds)  parts.push(`${c.adds} added`);
-  if (c.edits) parts.push(`${c.edits} edited`);
+  if (c.adds)   parts.push(`${c.adds} added`);
+  if (c.edits)  parts.push(`${c.edits} edited`);
+  if (c.images) parts.push(`${c.images} image${c.images > 1 ? "s" : ""}`);
   if (parts.length === 0) parts.push(`${c.count || 0} change${c.count === 1 ? "" : "s"}`);
   return parts.join(", ");
 }

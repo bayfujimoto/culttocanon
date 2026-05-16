@@ -11,9 +11,17 @@
 //
 // Payload:
 //   {
-//     files:   [{ filePath: "src/content/posts/...md", content: "---\n..." }],
+//     files: [
+//       { filePath: "src/content/posts/.../post.md",  content: "---\n..." },                // text
+//       { filePath: "src/content/posts/.../foo.jpg",  content: "<base64>", binary: true }   // binary
+//     ],
 //     message: "add POST-2026-005",
 //   }
+//
+// Binary file entries (image uploads — see src/admin/lib/image-queue.js)
+// carry their bytes as base64 in `content` with `binary: true`. The Git Data
+// API supports binary blobs natively via `encoding: "base64"`; we pass that
+// through for binary entries and `encoding: "utf-8"` for text entries.
 //
 // Response: { ok: true, mode: "github", sha } | { ok: false, error }
 
@@ -84,12 +92,15 @@ async function githubCommitAll(files, message, token, owner, repo, branch) {
   if (!commitRes.ok) throw new Error(`Get base commit: ${commitRes.status}`);
   const baseTreeSha = (await commitRes.json()).tree.sha;
 
-  // 3. Build tree entries — each file as a blob
-  const treeItems = await Promise.all(files.map(async ({ filePath, content }) => {
+  // 3. Build tree entries — each file as a blob. Binary entries pass
+  //    `encoding: "base64"`; text entries pass `"utf-8"` and the bytes
+  //    are sent as the JS string verbatim.
+  const treeItems = await Promise.all(files.map(async ({ filePath, content, binary }) => {
+    const encoding = binary ? "base64" : "utf-8";
     const blobRes = await fetch(`${base}/git/blobs`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ content, encoding: "utf-8" }),
+      body: JSON.stringify({ content, encoding }),
     });
     if (!blobRes.ok) throw new Error(`Create blob for ${filePath}: ${blobRes.status}`);
     const { sha } = await blobRes.json();

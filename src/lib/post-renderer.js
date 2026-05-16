@@ -6,14 +6,37 @@
 // The renderer is intentionally light — no syntax highlighting, no math, no
 // embeds yet. Phase 4 (iteration) can add what real pieces need.
 
-import { marked } from "marked";
+import { marked, Marked } from "marked";
 import { diffLines } from "./line-diff.js";
+import { imageAttributesExtension } from "../markdown/image-attributes.js";
+import { makeImageRendererExtension }  from "../markdown/image-renderer.js";
+import { enhanceImages }               from "../runtime/ctc-image-reveal.js";
 
 marked.setOptions({
   gfm:       true,
   breaks:    false,
   pedantic:  false,
 });
+
+// ── Per-post markdown parsing ──────────────────────────────────────────────
+// The image renderer needs to know the post's folder name (so it can build
+// URLs to derived assets). Marked's extensions are configured globally on the
+// `marked` singleton, so we mint a fresh Marked instance for each post and
+// register both the image-attributes tokenizer and the folder-scoped
+// renderer on it. The shared `marked` singleton is left untouched and stays
+// available for any callers (e.g. the diff view) that don't need image
+// rewriting.
+function parseBodyFor(post) {
+  if (!post) return "";
+  const m = new Marked({ gfm: true, breaks: false, pedantic: false });
+  m.use({
+    extensions: [
+      imageAttributesExtension,
+      makeImageRendererExtension(post.folder || ""),
+    ],
+  });
+  return m.parse(post.body || "");
+}
 
 /**
  * Render `post` into `container`. Replaces all contents of `container`.
@@ -43,9 +66,15 @@ export function renderPost(post, container) {
           ${revised ? `<span class="post-meta-sep">·</span><time class="post-meta-revised" datetime="${revised.iso}">revised ${revised.human}</time>` : ""}
         </div>
       </header>
-      <div class="post-body">${marked.parse(post.body || "")}</div>
+      <div class="post-body">${parseBodyFor(post)}</div>
     </article>
   `;
+
+  // Hand the freshly-rendered container to the runtime image enhancer.
+  // It's a no-op when there are no `img.ctc-dither` elements, so this is
+  // safe on every render. Static import so the swap happens synchronously
+  // after the DOM is in place — no first-click race.
+  enhanceImages(container);
 }
 
 /**
