@@ -3,49 +3,45 @@
 // drafts, abandoned, unlisted, and private. The author needs to see and reach
 // all of them.
 //
-// Groups by kind. Click a row to navigate to its edit route.
+// Renders a compact collapsible tree (shared with Browse) grouped by kind.
+// Item rows carry a visibility glyph, a status initial, and a YYYY-MM date.
+// Click an item row to navigate to its edit route; click a group to collapse.
 
-import { KIND, KIND_SHORT } from "../../lib/vocabularies.js";
+import { createTreeView } from "../../lib/tree-view.js";
 
-let _container = null;
-let _posts     = [];
-let _onSelect  = null;
-let _cursorId  = null;
+let _container  = null;
+let _posts      = [];
+let _onSelect   = null;
 let _selectedId = null;
+let _tree       = null;
+
+function ensureTree() {
+  if (_tree) return _tree;
+  _tree = createTreeView({
+    storageKey: "index.expanded",
+    renderItemMeta,
+    onSelect: (post) => { if (_onSelect) _onSelect(post); },
+  });
+  return _tree;
+}
 
 export function renderIndex(container, posts, { onSelect, selectedId } = {}) {
-  _container  = container;
-  _posts      = posts;
-  _onSelect   = onSelect;
+  _container = container;
+  _posts     = posts;
+  _onSelect  = onSelect;
   if (selectedId !== undefined) _selectedId = selectedId;
-  if (_cursorId == null) _cursorId = selectedId || posts[0]?.id || null;
   render();
 }
 
 export function setSelected(id) {
   _selectedId = id;
-  if (_cursorId == null) _cursorId = id;
-  paintSelection();
+  _tree?.setSelected(id);
 }
 
-export function moveCursor(direction) {
-  if (!_container) return;
-  const rows = visibleRows();
-  if (rows.length === 0) return;
-  const idx = rows.findIndex(r => r.dataset.postId === _cursorId);
-  let next;
-  if (idx === -1)                next = 0;
-  else if (direction === "down") next = Math.min(rows.length - 1, idx + 1);
-  else                            next = Math.max(0, idx - 1);
-  _cursorId = rows[next].dataset.postId;
-  paintCursor();
-  rows[next].scrollIntoView({ block: "nearest" });
-}
-
-export function activateCursor() {
-  const post = _posts.find(p => p.id === _cursorId);
-  if (post && _onSelect) _onSelect(post);
-}
+export function moveCursor(direction) { _tree?.moveCursor(direction); }
+export function activateCursor()      { _tree?.activateCursor(); }
+export function collapseCursor()      { _tree?.collapseOrParent(); }
+export function expandCursor()        { _tree?.expandOrChild(); }
 
 function render() {
   if (!_container) return;
@@ -55,88 +51,33 @@ function render() {
     return;
   }
 
-  // Group by kind; preserve KIND order
-  const byKind = new Map();
-  for (const k of KIND) byKind.set(k, []);
-  for (const p of _posts) {
-    if (!byKind.has(p.kind)) byKind.set(p.kind, []);
-    byKind.get(p.kind).push(p);
-  }
-
-  const sections = [];
-  for (const [k, group] of byKind) {
-    if (!group.length) continue;
-    sections.push(`
-      <section class="index-group">
-        <h3 class="index-group-heading">
-          <span class="index-group-kind">${escapeHTML(k)}</span>
-          <span class="index-group-count">${group.length}</span>
-        </h3>
-        <ul class="index-list">${group.map(renderRow).join("")}</ul>
-      </section>
-    `);
-  }
-
   _container.innerHTML = `
     <div class="index-toolbar">
       <span class="index-count">${_posts.length} ${_posts.length === 1 ? "piece" : "pieces"}</span>
       <button class="index-new" type="button" title=":new">+ new</button>
     </div>
-    ${sections.join("")}
+    <div class="index-tree-mount"></div>
   `;
 
   _container.querySelector(".index-new").addEventListener("click", () => {
     location.hash = "#/new";
   });
 
-  _container.querySelectorAll(".index-row").forEach(row => {
-    row.addEventListener("click", () => {
-      _cursorId = row.dataset.postId;
-      const post = _posts.find(p => p.id === _cursorId);
-      if (post && _onSelect) _onSelect(post);
-    });
-  });
-
-  paintSelection();
-  paintCursor();
+  const mount = _container.querySelector(".index-tree-mount");
+  ensureTree().render(mount, _posts, { selectedId: _selectedId });
 }
 
-function renderRow(p) {
+function renderItemMeta(p) {
   const date = p.created instanceof Date ? p.created.toISOString().slice(0, 7) : "";
   const visIcon = p.visibility === "private"  ? "·"
                 : p.visibility === "unlisted" ? "○"
                 :                                "●";
   const status = p.status || "?";
-  return `
-    <li class="index-row" data-post-id="${escapeAttr(p.id)}">
-      <span class="index-kind">${KIND_SHORT[p.kind] || "—"}</span>
-      <span class="index-title">${escapeHTML(p.title || p.id || "(untitled)")}</span>
-      <span class="index-vis"  title="${escapeAttr(p.visibility)}">${visIcon}</span>
-      <span class="index-date">${escapeHTML(date)}</span>
-      <span class="index-status index-status--${escapeAttr(status)}">${escapeHTML(status[0])}</span>
-    </li>
-  `;
-}
-
-function paintSelection() {
-  if (!_container) return;
-  _container.querySelectorAll(".index-row.is-selected").forEach(r => r.classList.remove("is-selected"));
-  if (!_selectedId) return;
-  const row = _container.querySelector(`.index-row[data-post-id="${cssEscape(_selectedId)}"]`);
-  if (row) row.classList.add("is-selected");
-}
-
-function paintCursor() {
-  if (!_container) return;
-  _container.querySelectorAll(".index-row.is-cursor").forEach(r => r.classList.remove("is-cursor"));
-  if (!_cursorId) return;
-  const row = _container.querySelector(`.index-row[data-post-id="${cssEscape(_cursorId)}"]`);
-  if (row) row.classList.add("is-cursor");
-}
-
-function visibleRows() {
-  if (!_container) return [];
-  return Array.from(_container.querySelectorAll(".index-row"));
+  return [
+    `<span class="index-vis" title="${escapeAttr(p.visibility)}">${visIcon}</span>`,
+    `<span class="index-status index-status--${escapeAttr(status)}">${escapeHTML(status[0])}</span>`,
+    `<span class="index-date">${escapeHTML(date)}</span>`,
+  ].join(" ");
 }
 
 function escapeHTML(s) {
@@ -146,8 +87,3 @@ function escapeHTML(s) {
 }
 
 function escapeAttr(s) { return escapeHTML(s); }
-
-function cssEscape(s) {
-  if (typeof CSS !== "undefined" && CSS.escape) return CSS.escape(s);
-  return String(s).replace(/[^\w-]/g, "\\$&");
-}

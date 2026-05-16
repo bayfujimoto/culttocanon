@@ -1,0 +1,99 @@
+/* ── Shared collapsible tree view ───────────────────────────────────────────
+   Compact Explorer-style tree used by the admin Index and the public Browse
+   (tree mode). Themed entirely through tokens so it adapts under both
+   [data-theme] admin and public. Indentation is set inline per depth in JS
+   (depth * 14 + 8 px); this file owns everything else.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* Vertical padding mirrors the reference .admin-tree-wrap (12px 0 10px); no
+   horizontal padding so rows — and their highlight — span the full pane
+   content width, exactly like the source project. */
+.tree {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  padding: 12px 0 10px;
+}
+
+.tree-row {
+  display: flex;
+  align-items: baseline;
+  /* padding-left is set inline per-depth */
+  padding-top: 2px;
+  padding-right: 12px;
+  padding-bottom: 2px;
+  cursor: pointer;
+  user-select: none;
+  color: var(--fg-muted);
+}
+
+.tree-row:hover {
+  background: var(--bg-elevated);
+}
+
+/* Cursor — keyboard "where am I" without opening the piece. Full-width
+   highlight, identical to mouse hover (no accent bar). */
+.tree-row.is-cursor {
+  background: var(--bg-elevated);
+}
+
+/* Selected — which piece is actually open */
+.tree-row.is-selected {
+  background: var(--bg-selected);
+  color: var(--fg);
+}
+
+.tree-row.is-selected .tree-label {
+  font-weight: 500;
+}
+
+.tree-marker {
+  width: 14px;
+  flex-shrink: 0;
+  text-align: center;
+  color: var(--fg-dim);
+  font-size: 0.78em;
+  margin-right: 2px;
+}
+
+.tree-item .tree-marker {
+  color: var(--border-faint);
+}
+
+.tree-group .tree-label {
+  color: var(--fg);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.tree-label {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--fg);
+}
+
+.tree-item .tree-label {
+  color: var(--fg-muted);
+}
+
+.tree-row.is-selected .tree-label {
+  color: var(--fg);
+}
+
+.tree-count {
+  margin-left: 10px;
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+  color: var(--fg-dim);
+}
+
+.tree-meta {
+  margin-left: 10px;
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+  color: var(--fg-dim);
+  letter-spacing: 0.04em;
+}

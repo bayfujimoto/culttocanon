@@ -1,18 +1,21 @@
 // ── Browse view ──────────────────────────────────────────────────────────────
 // Phase 2: tree/flat toggle + keyboard navigation.
 //
-// In TREE mode, posts are grouped by `kind`. The order of groups follows the
-// declared KIND vocabulary; within each group, posts are ordered as supplied
-// (the loader pre-sorts by created date, descending).
+// In TREE mode, posts are rendered as a compact collapsible tree grouped by
+// `kind` (shared with the admin Index — see ../../lib/tree-view.js). Groups
+// collapse/expand and the state persists to localStorage.
 //
-// In FLAT mode, posts are a single flat list, same order.
+// In FLAT mode, posts are a single flat list, ordered as supplied (the loader
+// pre-sorts by created date, descending). The flat list is unchanged from
+// Phase 2 — its own row markup, CSS, cursor, and selection logic.
 //
 // Keyboard navigation moves a cursor through the visible rows. Modes.js calls
-// `moveCursor('up' | 'down')` and `activateCursor()`; the cursor is decoupled
-// from the currently-opened post so navigating doesn't open new pieces — only
-// Enter or click does that.
+// `moveCursor`, `activateCursor`, `collapseCursor`, `expandCursor` (tree only),
+// and `toggleMode`. The cursor is decoupled from the currently-opened post so
+// navigating doesn't open new pieces — only Enter or click does that.
 
-import { KIND, KIND_SHORT } from "../../lib/vocabularies.js";
+import { KIND_SHORT } from "../../lib/vocabularies.js";
+import { createTreeView } from "../../lib/tree-view.js";
 
 const STORAGE_KEY = "browse.mode";
 
@@ -22,7 +25,18 @@ let _posts     = [];
 let _onSelect  = null;
 let _mode      = restoreMode();
 let _selectedId = null;   // the currently-OPENED piece (highlighted strongly)
-let _cursorId   = null;   // keyboard cursor (subtle ring; may differ from selected)
+let _cursorId   = null;   // FLAT-mode keyboard cursor (tree owns its own)
+let _tree       = null;
+
+function ensureTree() {
+  if (_tree) return _tree;
+  _tree = createTreeView({
+    storageKey: "browse.tree.expanded",
+    renderItemMeta,
+    onSelect: (post) => { if (_onSelect) _onSelect(post); },
+  });
+  return _tree;
+}
 
 // ── Public API ───────────────────────────────────────────────────────────────
 export function renderBrowse(container, posts, { onSelect, selectedId } = {}) {
@@ -38,11 +52,13 @@ export function renderBrowse(container, posts, { onSelect, selectedId } = {}) {
 export function setSelected(id) {
   _selectedId = id;
   if (_cursorId == null) _cursorId = id;
-  paintSelection();
+  if (_mode === "tree") _tree?.setSelected(id);
+  else                  paintSelection();
 }
 
 /** Move the keyboard cursor. `direction` is "up" or "down". */
 export function moveCursor(direction) {
+  if (_mode === "tree") { _tree?.moveCursor(direction); return; }
   if (!_container) return;
   const rows = visibleRows();
   if (rows.length === 0) return;
@@ -58,8 +74,19 @@ export function moveCursor(direction) {
 
 /** Open the post the cursor is on. */
 export function activateCursor() {
+  if (_mode === "tree") { _tree?.activateCursor(); return; }
   const post = _posts.find(p => p.id === _cursorId);
   if (post && _onSelect) _onSelect(post);
+}
+
+/** h / ← — collapse a group / jump to parent. Tree mode only. */
+export function collapseCursor() {
+  if (_mode === "tree") _tree?.collapseOrParent();
+}
+
+/** l / → — expand a group / enter first child. Tree mode only. */
+export function expandCursor() {
+  if (_mode === "tree") _tree?.expandOrChild();
 }
 
 /** Toggle between tree and flat modes; re-render. */
@@ -86,7 +113,7 @@ function render() {
       <button class="browse-toggle ${_mode === "flat" ? "is-active" : ""}" data-mode="flat" type="button">flat</button>
       <span class="browse-count">${_posts.length} ${_posts.length === 1 ? "piece" : "pieces"}</span>
     </div>
-    ${_mode === "tree" ? renderTree(_posts) : renderFlat(_posts)}
+    <div class="browse-content"></div>
   `;
 
   // Wire toggle buttons
@@ -100,60 +127,46 @@ function render() {
     });
   });
 
-  // Wire rows
-  _container.querySelectorAll(".browse-row").forEach(row => {
+  const content = _container.querySelector(".browse-content");
+
+  if (_mode === "tree") {
+    ensureTree().render(content, _posts, { selectedId: _selectedId });
+    return;
+  }
+
+  // FLAT mode — unchanged from Phase 2.
+  content.innerHTML = renderFlat(_posts);
+  content.querySelectorAll(".browse-row").forEach(row => {
     row.addEventListener("click", () => {
       _cursorId = row.dataset.postId;
       const post = _posts.find(p => p.id === _cursorId);
       if (post && _onSelect) _onSelect(post);
     });
   });
-
   paintSelection();
   paintCursor();
 }
 
 function renderFlat(posts) {
-  return `<ul class="browse-list browse-list--flat">${posts.map(p => renderRow(p, { showKind: true })).join("")}</ul>`;
+  return `<ul class="browse-list browse-list--flat">${posts.map(renderRow).join("")}</ul>`;
 }
 
-function renderTree(posts) {
-  // Group by kind. Order groups by the canonical KIND vocabulary.
-  const byKind = new Map();
-  for (const k of KIND) byKind.set(k, []);
-  for (const p of posts) {
-    if (!byKind.has(p.kind)) byKind.set(p.kind, []);
-    byKind.get(p.kind).push(p);
-  }
-  const sections = [];
-  for (const [k, group] of byKind) {
-    if (!group.length) continue;
-    sections.push(`
-      <section class="browse-group">
-        <h3 class="browse-group-heading">
-          <span class="browse-group-kind">${escapeHTML(k)}</span>
-          <span class="browse-group-count">${group.length}</span>
-        </h3>
-        <ul class="browse-list browse-list--tree">${group.map(p => renderRow(p, { showKind: false })).join("")}</ul>
-      </section>
-    `);
-  }
-  return sections.join("");
-}
-
-function renderRow(p, { showKind } = {}) {
+function renderRow(p) {
   // YY-MM, e.g. 2026-05 → "26-05"
   const date = p.created instanceof Date ? p.created.toISOString().slice(2, 7) : "";
-  const kind = showKind
-    ? `<span class="browse-kind">${KIND_SHORT[p.kind] || "—"}</span>`
-    : "";
   return `
-    <li class="browse-row${showKind ? "" : " browse-row--no-kind"}" data-post-id="${escapeAttr(p.id)}">
-      ${kind}
+    <li class="browse-row" data-post-id="${escapeAttr(p.id)}">
+      <span class="browse-kind">${KIND_SHORT[p.kind] || "—"}</span>
       <span class="browse-title">${escapeHTML(p.title)}</span>
       <span class="browse-date">${escapeHTML(date)}</span>
     </li>
   `;
+}
+
+// Tree-mode item metadata: a YY-MM date, right-aligned.
+function renderItemMeta(p) {
+  const date = p.created instanceof Date ? p.created.toISOString().slice(2, 7) : "";
+  return escapeHTML(date);
 }
 
 function paintSelection() {

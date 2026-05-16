@@ -20,6 +20,7 @@
 import "../styles/tokens.css";
 import "../shell/shell.css";
 import "../styles/post-body.css";
+import "../styles/tree-view.css";
 import "./styles.css";
 
 import { renderShell }      from "../shell/render-shell.js";
@@ -28,10 +29,12 @@ import { renderPost, renderDiff } from "../lib/post-renderer.js";
 import { getHistoryById }   from "../lib/history.js";
 import {
   renderBrowse,
-  setSelected   as setBrowseSelected,
-  moveCursor    as moveBrowseCursor,
+  setSelected    as setBrowseSelected,
+  moveCursor     as moveBrowseCursor,
   activateCursor as activateBrowseCursor,
-  toggleMode    as toggleBrowseMode,
+  collapseCursor as collapseBrowseCursor,
+  expandCursor   as expandBrowseCursor,
+  toggleMode     as toggleBrowseMode,
 } from "./views/browse.js";
 import { renderMarginalia } from "./views/marginalia.js";
 import { initRouter, navigate } from "./lib/router.js";
@@ -42,8 +45,9 @@ import { initModes, getFocusedPane, flashStatus } from "./lib/modes.js";
 // only in group `b`. Ex-commands (:e/:q/:home) live in the help overlay, not
 // the inline legend.
 const PUBLIC_KEYMAP_GROUPS = {
-  b: [["j/k", "navigate"], ["Enter", "open"], ["t", "tree/flat"],
-      ["r", "Read"], ["m", "Marginalia"], [":", "cmd"], ["?", "help"]],
+  b: [["j/k", "navigate"], ["h/l", "collapse/expand"], ["Enter", "open"],
+      ["t", "tree/flat"], ["r", "Read"], ["m", "Marginalia"],
+      [":", "cmd"], ["?", "help"]],
   r: [["b", "Browse"], ["m", "Marginalia"], ["Esc", "reset"],
       [":", "cmd"], ["?", "help"]],
   m: [["b", "Browse"], ["r", "Read"], ["Esc", "reset"],
@@ -56,8 +60,8 @@ const PUBLIC_HELP = {
     { heading: "Panes", rows: [
       ["b", "focus Browse"], ["r", "focus Read"], ["m", "focus Marginalia"] ] },
     { heading: "Browse", rows: [
-      ["j / k", "move cursor"], ["Enter", "open piece"],
-      ["t", "toggle tree / flat"] ] },
+      ["j / k", "move cursor"], ["h / l", "collapse / expand (tree)"],
+      ["Enter", "toggle group / open piece"], ["t", "toggle tree / flat"] ] },
     { heading: "Command (:)", rows: [
       [":e <id|slug>", "open a piece"], [":q", "close current piece"],
       [":home", "return to /"] ] },
@@ -219,6 +223,8 @@ initModes({
     if (action === "down") moveBrowseCursor("down");
     else if (action === "up") moveBrowseCursor("up");
     else if (action === "open") activateBrowseCursor();
+    else if (action === "collapse") collapseBrowseCursor();
+    else if (action === "expand") expandBrowseCursor();
   },
   onBrowseToggle: () => {
     toggleBrowseMode();

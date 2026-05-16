@@ -20,6 +20,7 @@
 import "../styles/tokens.css";
 import "../shell/shell.css";
 import "../styles/post-body.css";
+import "../styles/tree-view.css";
 import "./styles.css";
 
 import { renderShell }    from "../shell/render-shell.js";
@@ -33,8 +34,8 @@ import { initModes, getFocusedPane, flashStatus } from "./lib/modes.js";
 // j/k/Enter only fire when Index is focused. Ex-commands (:update/:q/:new/:e) live
 // in the help overlay, not the inline legend.
 const ADMIN_KEYMAP_GROUPS = {
-  i: [["j/k", "navigate"], ["Enter", "open"], ["m", "Manuscript"],
-      ["d", "Dispatch"], [":", "cmd"], ["?", "help"]],
+  i: [["j/k", "navigate"], ["h/l", "collapse/expand"], ["Enter", "open"],
+      ["m", "Manuscript"], ["d", "Dispatch"], [":", "cmd"], ["?", "help"]],
   m: [["Esc", "normal"], ["i", "Index"], ["d", "Dispatch"],
       [":", "cmd"], ["?", "help"]],
   d: [["i", "Index"], ["m", "Manuscript"], ["Esc", "reset"],
@@ -47,7 +48,8 @@ const ADMIN_HELP = {
     { heading: "Panes", rows: [
       ["i", "focus Index"], ["m", "focus Manuscript"], ["d", "focus Dispatch"] ] },
     { heading: "Index", rows: [
-      ["j / k", "move cursor"], ["Enter", "open"] ] },
+      ["j / k", "move cursor"], ["h / l", "collapse / expand"],
+      ["Enter", "toggle group / open"] ] },
     { heading: "Editing", rows: [
       ["(focus a field)", "enter INSERT"], ["Esc", "leave field → NORMAL"] ] },
     { heading: "Command (:)", rows: [
@@ -60,9 +62,11 @@ const ADMIN_HELP = {
 
 import {
   renderIndex,
-  setSelected   as setIndexSelected,
-  moveCursor    as moveIndexCursor,
+  setSelected    as setIndexSelected,
+  moveCursor     as moveIndexCursor,
   activateCursor as activateIndexCursor,
+  collapseCursor as collapseIndexCursor,
+  expandCursor   as expandIndexCursor,
 } from "./views/index-view.js";
 
 import {
@@ -139,6 +143,8 @@ initModes({
     if (action === "down") moveIndexCursor("down");
     else if (action === "up") moveIndexCursor("up");
     else if (action === "open") activateIndexCursor();
+    else if (action === "collapse") collapseIndexCursor();
+    else if (action === "expand") expandIndexCursor();
   },
   onUpdate: () => {
     // If a form is open, save it first to stage the change; then gate the

@@ -142,6 +142,16 @@ function onKeyDown(e) {
       e.preventDefault();
       return;
     }
+    if (e.key === "h" || e.key === "ArrowLeft") {
+      handlers.onIndexNav?.("collapse");
+      e.preventDefault();
+      return;
+    }
+    if (e.key === "l" || e.key === "ArrowRight") {
+      handlers.onIndexNav?.("expand");
+      e.preventDefault();
+      return;
+    }
     if (e.key === "Enter") {
       handlers.onIndexNav?.("open");
       e.preventDefault();
