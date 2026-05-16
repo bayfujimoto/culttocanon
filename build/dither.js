@@ -212,7 +212,12 @@ function makeQuant(data, W, H) {
 // ── PNG encode helper ───────────────────────────────────────────────────────
 
 async function encodePngRgba(rgba, W, H, outPath) {
+  // withMetadata({ density: 72 }) embeds an sRGB colour profile (sRGB chunk).
+  // Without it, iOS Safari treats untagged PNGs as Display P3 and converts
+  // pixel values during getImageData(), breaking the INK/PAPER detection in
+  // the hover-trail buffer.
   await sharp(rgba, { raw: { width: W, height: H, channels: 4 } })
+    .withMetadata({ density: 72 })
     .png({ compressionLevel: 9, palette: true })
     .toFile(outPath);
 }
