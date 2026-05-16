@@ -165,7 +165,13 @@ function swap(img) {
   canvas.setAttribute("height", String(H));
 
   const ctx = canvas.getContext("2d");
-  ctx.imageSmoothingEnabled = false;
+  // iOS: the buffer is the large device-pixel box, so the small dither is
+  // magnified into it. Nearest-neighbor magnification of a small source on
+  // iOS WebKit re-triggers the tiled-canvas black-band bug, so use bilinear
+  // smoothing there — it interpolates across the source and never reads hard
+  // tile edges. Desktop: buffer is the dither's natural size (no in-canvas
+  // magnification); keep nearest so CSS image-rendering:pixelated stays crisp.
+  ctx.imageSmoothingEnabled = isIOS();
   const ditherImg = new Image();
   ditherImg.decoding = "async";
   ditherImg.onload = () => {
@@ -178,6 +184,24 @@ function swap(img) {
     });
   };
   ditherImg.src = img.currentSrc || img.src;
+}
+
+// After a bilinear drawImage on iOS (needed to avoid the tiled-canvas
+// black-band bug with nearest-neighbor), snap every pixel back to exactly
+// INK or PAPER. Bilinear interpolation creates grey midtones that destroy
+// the crisp 1-bit look; thresholding restores it while keeping bands gone.
+function thresholdCanvas(ctx, W, H) {
+  const imageData = ctx.getImageData(0, 0, W, H);
+  const d = imageData.data;
+  const mid = (INK[0] + PAPER[0]) / 2; // 122
+  for (let i = 0; i < d.length; i += 4) {
+    const isInk = d[i] < mid;
+    d[i]   = isInk ? INK[0]   : PAPER[0];
+    d[i+1] = isInk ? INK[1]   : PAPER[1];
+    d[i+2] = isInk ? INK[2]   : PAPER[2];
+    // alpha left unchanged
+  }
+  ctx.putImageData(imageData, 0, 0);
 }
 
 // True on iOS / iPadOS (all browsers there are WebKit). Covers classic iOS
@@ -234,6 +258,11 @@ function initInteraction(canvas, ctx, ditherImg, W, H, aspect, natW, opts) {
   const geom = { W, H, COLS: 0, ROWS: 0, cw: 0, ch: 0, hoverR: 0 };
   let phase = null;
   let trail = null, clean = null;
+  // iOS only: a pre-thresholded ImageData snapshot of the dither at the current
+  // buffer size. Reused every frame so we pay getImageData only once per resize,
+  // not once per rAF tick. Null on non-iOS (trail/clean serve the same purpose
+  // on hover-capable devices; non-iOS touch gets a plain drawImage per frame).
+  let iosDitherFrame = null;
 
   function rebuildGeometry(nextW, nextH) {
     const bufScale = nextW / natW;
@@ -252,9 +281,16 @@ function initInteraction(canvas, ctx, ditherImg, W, H, aspect, natW, opts) {
       // Off-screen buffer for the hover trail. Seeded from the dither pixels;
       // flicker writes into it and a per-frame decay restores flipped pixels.
       ctx.drawImage(ditherImg, 0, 0, nextW, nextH);
+      if (isIOS()) thresholdCanvas(ctx, nextW, nextH);
       trail = ctx.getImageData(0, 0, nextW, nextH);
       // Clean snapshot used as ground truth for decay restoration.
       clean = new Uint8Array(trail.data);
+    } else if (isIOS()) {
+      // No hover on iOS touch. Build the cached frame once so render() can
+      // putImageData every tick instead of draw+threshold every tick.
+      ctx.drawImage(ditherImg, 0, 0, nextW, nextH);
+      thresholdCanvas(ctx, nextW, nextH);
+      iosDitherFrame = ctx.getImageData(0, 0, nextW, nextH);
     }
   }
   rebuildGeometry(W, H);
@@ -307,11 +343,12 @@ function initInteraction(canvas, ctx, ditherImg, W, H, aspect, natW, opts) {
       canvas.height = nextH;
       canvas.setAttribute("width",  String(nextW));
       canvas.setAttribute("height", String(nextH));
-      ctx.imageSmoothingEnabled = false;
+      // iOS path (this whole block is gated on isIOS): bilinear, band-free.
+      ctx.imageSmoothingEnabled = true;
       rebuildGeometry(nextW, nextH);
       // Cancel any in-flight transition — its phase array is now wrong-sized.
       state.click = null;
-      render(state, phase, opts, ctx, ditherImg, geom, performance.now(), trail, clean);
+      render(state, phase, opts, ctx, ditherImg, geom, performance.now(), trail, clean, iosDitherFrame);
     });
     ro.observe(canvas);
   }
@@ -319,7 +356,7 @@ function initInteraction(canvas, ctx, ditherImg, W, H, aspect, natW, opts) {
   // Start the rAF loop. It's idle (single drawImage per frame) when the
   // canvas is at rest and no cursor is over it.
   function frame(now) {
-    render(state, phase, opts, ctx, ditherImg, geom, now, trail, clean);
+    render(state, phase, opts, ctx, ditherImg, geom, now, trail, clean, iosDitherFrame);
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
@@ -403,10 +440,12 @@ function rnd(n) {
 
 // ── Rendering ──────────────────────────────────────────────────────────────
 
-function render(state, phase, opts, ctx, ditherImg, geom, now, trail, clean) {
+function render(state, phase, opts, ctx, ditherImg, geom, now, trail, clean, iosDitherFrame) {
   const { W, H, COLS, ROWS, cw, ch, hoverR } = geom;
-  // iOS Safari may reset imageSmoothingEnabled between frames.
-  ctx.imageSmoothingEnabled = false;
+  // Re-assert every frame (iOS Safari can reset it). iOS uses bilinear so the
+  // magnified dither stays band-free; desktop uses nearest for crisp pixels
+  // that CSS image-rendering:pixelated then upscales.
+  ctx.imageSmoothingEnabled = isIOS();
   // Determine current mode.
   let dir = null, progress = 1;
   if (state.click) {
@@ -426,6 +465,10 @@ function render(state, phase, opts, ctx, ditherImg, geom, now, trail, clean) {
     } else if (trail && clean) {
       applyHoverFlicker(state.hover, W, H, hoverR, now, trail, clean);
       ctx.putImageData(trail, 0, 0);
+    } else if (iosDitherFrame) {
+      // iOS rest state: use the pre-thresholded snapshot so we don't pay
+      // getImageData/putImageData every frame.
+      ctx.putImageData(iosDitherFrame, 0, 0);
     } else {
       ctx.drawImage(ditherImg, 0, 0, W, H);
     }
