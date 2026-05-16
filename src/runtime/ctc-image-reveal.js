@@ -116,26 +116,14 @@ function upgradeImage(img) {
 }
 
 function swap(img) {
-  const W = img.naturalWidth  || img.width;
-  const H = img.naturalHeight || img.height;
-  if (!W || !H) return;
-
   const noReveal = img.dataset.noReveal === "1";
 
   const canvas = document.createElement("canvas");
-  canvas.width  = W;
-  canvas.height = H;
   canvas.className = img.className.replace(/\bctc-dither\b/, "ctc-dither-canvas").trim();
   if (img.classList.contains("ctc-image--full")) canvas.classList.add("ctc-image--full");
   canvas.setAttribute("role", "img");
   canvas.setAttribute("aria-label", img.alt || "");
   if (!noReveal) canvas.setAttribute("tabindex", "0");
-
-  // Preserve display dimensions so the canvas occupies the same space as
-  // the <img> did. Explicit width/height attributes plus the inline style
-  // keep the layout stable through the swap.
-  canvas.setAttribute("width",  String(W));
-  canvas.setAttribute("height", String(H));
 
   // Adjacent visually-hidden caption carries the alt text for screen readers.
   let figcaption = null;
@@ -151,12 +139,17 @@ function swap(img) {
   parent.replaceChild(canvas, img);
   if (figcaption) parent.insertBefore(figcaption, canvas.nextSibling);
 
-  // Pre-paint with the dither image so first frame after swap shows the
-  // same pixels the <img> was showing. No flicker.
+  const W = img.naturalWidth  || img.width;
+  const H = img.naturalHeight || img.height;
+  if (!W || !H) return;
+
+  canvas.width  = W;
+  canvas.height = H;
+  canvas.setAttribute("width",  String(W));
+  canvas.setAttribute("height", String(H));
+
   const ctx = canvas.getContext("2d");
   ctx.imageSmoothingEnabled = false;
-  // We need an Image because the original <img> is gone from the DOM.
-  // Reload via the URL — the browser cache makes this synchronous.
   const ditherImg = new Image();
   ditherImg.decoding = "async";
   ditherImg.onload = () => {
@@ -315,6 +308,8 @@ function rnd(n) {
 // ── Rendering ──────────────────────────────────────────────────────────────
 
 function render(state, phase, opts, ctx, ditherImg, W, H, COLS, ROWS, now, trail, clean) {
+  // iOS Safari may reset imageSmoothingEnabled between frames.
+  ctx.imageSmoothingEnabled = false;
   // Determine current mode.
   let dir = null, progress = 1;
   if (state.click) {
