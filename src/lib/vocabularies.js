@@ -11,7 +11,8 @@
 
 export const STATUS = [
   "draft",
-  "evergreen",
+  "stable",
+  "dormant",
   "abandoned",
 ];
 
@@ -37,10 +38,8 @@ export const REGISTER = [
   "academic",
   "belletristic",
   "plainspoken",
-  "hybrid",
-  "performative",
+  "discursive",
   "polemical",
-  "lyric",
 ];
 
 // Gwern Branwen's vocabulary, full set. Hyphenated where multi-word.

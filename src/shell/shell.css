@@ -409,7 +409,7 @@ body {
   .shell-grid {
     display: flex;
     flex-direction: column;
-    padding: 8px 8px 0;
+    padding: 12px 8px 12px;
   }
   .shell-pane:not(.is-mobile-active) {
     display: none;

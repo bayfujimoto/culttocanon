@@ -1,17 +1,21 @@
 ---
 id: REV-2026-004
-version: 0.1.0
+version: 0.1.1
 slug: review-of-cabinet-as-model
-title: "Cabinet, as a Model"
+title: Cabinet, as a Model
 created: 2026-03-14
+revised: 2026-05-16
 status: abandoned
 kind: review
 register: polemical
 confidence: likely
-subjects: [cabinet-magazine, periodicals, criticism]
-links: []
-visibility: public
+subjects:
+  - cabinet-magazine
+  - periodicals
+  - criticism
+visibility: private
 ---
+
 
 *Abandoned 2026-04. The argument was thinner than it looked; what remained was an enthusiasm not yet a thesis.*
 

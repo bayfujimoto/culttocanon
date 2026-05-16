@@ -1,17 +1,23 @@
 ---
 id: NOT-2026-003
-version: 0.1.0
+version: 0.1.1
 slug: note-on-paratext
 title: Note on Paratext
 created: 2026-05-08
+revised: 2026-05-16
 status: draft
 kind: note
 register: plainspoken
 confidence: log
-subjects: [paratext, marginalia, criticism]
-links: [FRG-2026-002]
-visibility: public
+subjects:
+  - paratext
+  - marginalia
+  - criticism
+links:
+  - FRG-2026-002
+visibility: private
 ---
+
 
 Genette's *Seuils* (1987) distinguishes peritext (front matter, footnotes, dust jacket) from epitext (interviews, letters, reviews). For a website, the peritext is what sits in the page chrome: the URL, the title bar, the navigation, the date. The epitext is what links to it from elsewhere — the other site that says *go read this*.
 

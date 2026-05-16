@@ -18,7 +18,7 @@
 //     title:      "On the Backrooms as Canon",
 //     created:    Date,
 //     revised:    Date | null,
-//     status:     "draft" | "evergreen" | "abandoned",
+//     status:     "draft" | "stable" | "dormant" | "abandoned",
 //     kind:       "essay" | "fragment" | "note" | "review" | "fiction",
 //     register:   one of REGISTER,
 //     confidence: one of CONFIDENCE | null,
@@ -60,13 +60,11 @@ export function getAllPosts() {
 }
 
 /**
- * Return posts visible to the public (status not `abandoned` and visibility
- * `public`). Used by Browse on the public site.
+ * Return posts visible to the public (visibility `public`). Used by Browse
+ * on the public site.
  */
 export function getPublicPosts() {
-  return getAllPosts().filter(
-    (p) => p.visibility === "public" && p.status !== "abandoned"
-  );
+  return getAllPosts().filter((p) => p.visibility === "public");
 }
 
 export function getPostById(id) {

@@ -23,7 +23,7 @@ import "../styles/post-body.css";
 import "../styles/tree-view.css";
 import "./styles.css";
 
-import { renderShell }      from "../shell/render-shell.js";
+import { renderShell, setMobileActivePane } from "../shell/render-shell.js";
 import { getPublicPosts }   from "../lib/post-loader.js";
 import { renderPost, renderDiff } from "../lib/post-renderer.js";
 import { getHistoryById }   from "../lib/history.js";
@@ -188,6 +188,7 @@ function showNotFound(path) {
 function openPost(post) {
   if (!post) return;
   navigate("/" + post.slug);
+  if (window.matchMedia("(max-width: 700px)").matches) setMobileActivePane("r");
 }
 
 // ── Render Browse with current data ──────────────────────────────────────────

@@ -1,17 +1,21 @@
 ---
 id: ESS-2026-001
-version: 0.1.0
+version: 0.1.1
 slug: on-the-backrooms-as-canon
 title: On the Backrooms as Canon
 created: 2026-05-15
+revised: 2026-05-16
 status: draft
 kind: essay
 register: academic
 confidence: possible
-subjects: [analog-horror, canon-formation, youtube]
-links: []
-visibility: public
+subjects:
+  - analog-horror
+  - canon-formation
+  - youtube
+visibility: private
 ---
+
 
 *This is a Phase 1 stub. Replace with real content.*
 

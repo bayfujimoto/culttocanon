@@ -249,7 +249,7 @@ function initMobileTabs(defaultKey) {
   setMobileActivePane(defaultKey);
 }
 
-function setMobileActivePane(key) {
+export function setMobileActivePane(key) {
   document.querySelectorAll('.shell-pane[data-pane]').forEach((p) => {
     p.classList.toggle('is-mobile-active', p.dataset.pane === key);
   });

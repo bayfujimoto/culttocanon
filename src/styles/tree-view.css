@@ -83,6 +83,13 @@
   color: var(--fg);
 }
 
+/* ── Mobile: disable persistent cursor highlight in tree (Browse + Index) ── */
+@media (max-width: 700px) {
+  .tree-row.is-cursor { background: transparent; }
+  .tree-row:active,
+  .tree-row.is-selected:active { background: var(--bg-elevated); }
+}
+
 .tree-count {
   margin-left: 10px;
   flex-shrink: 0;
