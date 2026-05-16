@@ -49,18 +49,28 @@ export function renderPost(post, container) {
 }
 
 /**
- * Render an inline unified diff of a prior `version` against the current
- * `post` body into `container`. `version` = { revised, words, body }.
- * `onClose` is invoked when the banner's [×] is clicked (Esc is wired by the
- * caller). Replaces all contents of `container`.
+ * Render an inline unified diff into `container`. The diff is between
+ * `oldBody` and `newBody`; the banner describes which version is being
+ * shown and offers navigation between adjacent versions and back to the
+ * current state.
+ *
+ * Backward-diff semantic: the diff shows the changes that *produced* the
+ * version named in `banner`. For the first entry in history (no predecessor),
+ * callers pass `oldBody: ""` so the initial publish renders as all-additions.
+ *
+ * @param {HTMLElement} container
+ * @param {Object} opts
+ * @param {string} opts.oldBody                       earlier body (or "")
+ * @param {string} opts.newBody                       this version's body
+ * @param {Object} opts.banner                        { id, version, category, date }
+ * @param {Function|null} [opts.onPrev]               older entry, or null
+ * @param {Function|null} [opts.onNext]               newer entry, or null
+ * @param {Function} [opts.onClose]                   back to current state
  */
-export function renderDiff(post, version, container, { onClose } = {}) {
-  if (!post || !version) {
-    container.innerHTML = "";
-    return;
-  }
+export function renderDiff(container, opts = {}) {
+  const { oldBody, newBody, banner = {}, onPrev, onNext, onClose } = opts;
 
-  const rows = diffLines(version.body || "", post.body || "");
+  const rows  = diffLines(oldBody || "", newBody || "");
   const SIGIL = { ctx: " ", add: "+", del: "-" };
 
   const lines = rows.map(r => {
@@ -71,20 +81,42 @@ export function renderDiff(post, version, container, { onClose } = {}) {
            `</div>`;
   }).join("");
 
-  const from = version.revised || "earlier";
+  const id   = banner.id       || "";
+  const ver  = banner.version  || "";
+  const cat  = banner.category || "";
+  const date = banner.date     || "";
+
+  const prevAttr = onPrev ? "" : "disabled";
+  const nextAttr = onNext ? "" : "disabled";
 
   container.innerHTML = `
     <article class="post post--diff">
       <div class="diff-banner">
-        <span class="diff-banner-label">diff: ${escapeHTML(from)} → current</span>
-        <button type="button" class="diff-banner-close" id="diff-close" title="back to reading (Esc)">×</button>
+        <span class="diff-banner-label">
+          reading diff:
+          <span class="diff-banner-id">${escapeHTML(id)}</span>
+          <span class="diff-banner-version">v${escapeHTML(ver)}</span>
+          ${cat ? `<span class="diff-banner-category diff-banner-category--${escapeAttr(cat)}">[${escapeHTML(cat)}]</span>` : ""}
+          ${date ? `<span class="diff-banner-sep">·</span><time class="diff-banner-date">${escapeHTML(date)}</time>` : ""}
+        </span>
+        <span class="diff-banner-nav-group">
+          <button type="button" class="diff-banner-nav" data-nav="prev" ${prevAttr} title="older version">← prev</button>
+          <button type="button" class="diff-banner-nav" data-nav="current" title="back to current (Esc)">view current</button>
+          <button type="button" class="diff-banner-nav" data-nav="next" ${nextAttr} title="newer version">next →</button>
+        </span>
       </div>
       <div class="diff-body">${lines}</div>
     </article>
   `;
 
-  const btn = container.querySelector("#diff-close");
-  if (btn && onClose) btn.addEventListener("click", onClose);
+  container.querySelectorAll(".diff-banner-nav").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const nav = btn.dataset.nav;
+      if (nav === "prev"    && onPrev)  onPrev();
+      else if (nav === "next"    && onNext)  onNext();
+      else if (nav === "current" && onClose) onClose();
+    });
+  });
 }
 
 function formatDate(d) {

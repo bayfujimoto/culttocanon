@@ -67,7 +67,7 @@ export function renderForm(container, post, { isNew = false } = {}) {
       <div class="form-header">
         <span class="form-title">${isNew ? "new piece" : escapeHTML(post.title || post.id)}</span>
         <span class="form-id">${escapeHTML(post.id || "—")}</span>
-        <button type="button" class="form-save" id="form-save">save&nbsp;<span class="form-save-hint">:w</span></button>
+        <button type="button" class="form-save" id="form-save">update&nbsp;<span class="form-save-hint">:update</span></button>
       </div>
       <div class="form-fields">
         ${fields.map(f => renderField(f, _post)).join("")}
@@ -92,11 +92,12 @@ export function renderForm(container, post, { isNew = false } = {}) {
 }
 
 /**
- * Read the form, serialize it, stage it as a pending change. Called by `:w`
- * and by the Save button. Returns the staged change.
+ * Read the form, serialize it, stage it as a pending change. Called by
+ * `:update` (via the main handler) and by the Save button. Returns the
+ * staged change.
  *
- * No-op if no form is currently rendered (e.g., `:w` is pressed while the
- * dashboard is showing — we just want it to commit, not error).
+ * No-op if no form is currently rendered (e.g., `:update` is pressed while
+ * the dashboard is showing — we just want it to commit, not error).
  */
 export function save() {
   if (!_container) return null;
@@ -249,6 +250,10 @@ function readForm() {
   // `revised` has no input — it's stamped automatically at dispatch. Carry any
   // existing value through unchanged so save() doesn't drop it pre-dispatch.
   data.revised  = _post?.revised ?? null;
+  // `version` has no input either — it's bumped by the `:update` flow at
+  // dispatch time. Carry it through unchanged so save() doesn't drop it; new
+  // posts inherit "0.1.0" from the blank template in renderNew.
+  data.version  = _post?.version ?? "0.1.0";
 
   data.status     = v("#field-status")     || null;
   data.kind       = v("#field-kind")       || null;

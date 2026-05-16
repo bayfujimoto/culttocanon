@@ -14,6 +14,7 @@ import yaml from "js-yaml";
 // gets appended at the end.
 const FIELD_ORDER = [
   "id",
+  "version",
   "slug",
   "title",
   "created",

@@ -1,5 +1,6 @@
 ---
 id: ESS-2026-001
+version: 0.1.0
 slug: on-the-backrooms-as-canon
 title: On the Backrooms as Canon
 created: 2026-05-15

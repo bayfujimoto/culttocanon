@@ -7,6 +7,7 @@
 // The Post object shape (after validation):
 //   {
 //     id:         "ESS-2026-001",
+//     version:    "0.3.1",       // semver; first publish is "0.1.0"
 //     slug:       "on-the-backrooms-as-canon",
 //     title:      "On the Backrooms as Canon",
 //     created:    Date,
@@ -111,6 +112,7 @@ function parseOne(file, raw) {
 
   return {
     id:         data.id,
+    version:    typeof data.version === "string" ? data.version : "0.1.0",
     slug:       data.slug,
     title:      data.title,
     created,

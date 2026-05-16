@@ -262,7 +262,7 @@
 }
 
 .marginalia-version {
-  color: var(--accent-blue);
+  color: var(--fg);
   text-decoration: none;
   border-bottom: 1px dotted currentColor;
   font-variant-numeric: tabular-nums;
@@ -270,6 +270,19 @@
 
 .marginalia-version:hover {
   opacity: 0.7;
+}
+
+/* Per-category color: patch muted, minor standard fg (inherits), major accent. */
+.marginalia-version--patch   { color: var(--fg-dim); }
+.marginalia-version--minor   { color: var(--fg); }
+.marginalia-version--major   { color: var(--accent-blue); }
+.marginalia-version--initial { color: var(--fg-dim); font-style: italic; }
+
+.marginalia-version-cat {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 10px;
+  opacity: 0.85;
 }
 
 .marginalia-empty {
@@ -308,9 +321,30 @@
 .diff-banner-label {
   color: var(--fg-muted);
   letter-spacing: 0.04em;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
-.diff-banner-close {
+.diff-banner-id        { color: var(--fg-dim); font-variant-numeric: tabular-nums; }
+.diff-banner-version   { color: var(--fg); font-variant-numeric: tabular-nums; }
+.diff-banner-sep       { color: var(--fg-dim); }
+.diff-banner-date      { color: var(--fg-dim); }
+
+.diff-banner-category               { font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase; }
+.diff-banner-category--patch        { color: var(--fg-dim); }
+.diff-banner-category--minor        { color: var(--fg); }
+.diff-banner-category--major        { color: var(--accent-blue); }
+.diff-banner-category--initial      { color: var(--fg-dim); font-style: italic; }
+
+.diff-banner-nav-group {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.diff-banner-nav {
   appearance: none;
   background: none;
   border: 1px solid var(--border-faint);
@@ -322,9 +356,14 @@
   cursor: pointer;
 }
 
-.diff-banner-close:hover {
+.diff-banner-nav:hover:not(:disabled) {
   color: var(--fg);
   border-color: var(--border-strong);
+}
+
+.diff-banner-nav:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .diff-body {

@@ -24,30 +24,36 @@ Before defining the terms for the site, define them for yourself by looking at w
 The thesis is incomplete without breadth. Western canon-theory has often pretended to universality; the corrective is to read traditions that built their own canons on different grounds.
 
 ### Greek and Roman
+
 - **Aristotle**, *Poetics*. The earliest surviving systematic canon-theory in the West — what tragedy is, which poets did it well, why.
 - **Quintilian**, *Institutio Oratoria* X.1 (1st c. CE). A working reading list for Roman rhetorical education — canon-formation in operational form.
 - **Reynolds & Wilson**, *Scribes and Scholars: A Guide to the Transmission of Greek and Latin Literature* (Oxford, 4th ed. 2013). How antiquity reached us at all — the material history of canon survival.
 
 ### Chinese
+
 - **Confucius**, *Analects*. The figure who, more than any other, defines what canonization meant in East Asia. The *Five Classics* (五經) are the result.
 - **Liu Xie** (劉勰), *Wenxin diaolong* (文心雕龍, "The Literary Mind and the Carving of Dragons"), c. 501 CE. The most ambitious work of premodern Chinese literary theory; treats genre, style, and value systematically.
 - **Zhong Rong** (鍾嶸), *Shipin* (詩品, "Grades of Poetry"), c. 513 CE. Explicit ranking of 122 poets into three tiers — a canon-formation apparatus in pure form, centuries before the West had anything comparable.
 - **Stephen Owen**, *Readings in Chinese Literary Thought* (Harvard, 1992). The best English-language entry point.
 
 ### Sanskrit
+
 - **Bharata**, *Nāṭyaśāstra* (c. 200 BCE – 200 CE). The foundational text of Indian aesthetics; introduces *rasa* theory.
 - **Ānandavardhana**, *Dhvanyāloka* ("Light on Suggestion"), 9th c., with **Abhinavagupta**'s commentary. Argues poetic value resides in *dhvani*, suggestion — a non-Western theory of literary worth radically unlike Western mimesis-based accounts.
 - **Sheldon Pollock**, *The Language of the Gods in the World of Men* (California, 2006), and his anthology *A Rasa Reader* (Columbia, 2016).
 
 ### Arabic and Persian
+
 - **Al-Jāḥiẓ**, *Kitāb al-Bayān wa-l-Tabyīn* ("The Book of Eloquence and Demonstration"), 9th c. Foundational treatment of the Arabic *adab* tradition — a canon of style and conduct, not just texts.
 - **Ibn Khaldūn**, *Muqaddimah* (1377). The most ambitious premodern theory of how cultures produce and lose their canons, embedded in a theory of civilizational rise and fall.
 
 ### Japanese
+
 - **Murasaki Shikibu**, *Tale of Genji* (early 11th c.), and the body of criticism around it from Motoori Norinaga (*Genji Monogatari Tama no Ogushi*, 1799) to the present — a case study in how a single work gets canonized inside its culture and then exported.
 - **Haruo Shirane**, *Traces of Dreams: Landscape, Cultural Memory, and the Poetry of Bashō* (Stanford, 1998). On the formation of the haikai canon.
 
 ### Religious canon-formation as comparative laboratory
+
 - **The Pali Canon (Tipiṭaka)** — its councils and closure offer a textbook case of how a community decides what is and is not authoritative.
 - **The hadith sciences** — al-Bukhārī and Muslim ibn al-Ḥajjāj's compilations (9th c.) as the most rigorous canon-formation method ever invented, with explicit *isnād* (chain-of-transmission) criteria for inclusion.
 - **Jonathan Z. Smith** (see §1) is the bridge between religious and literary canon theory.

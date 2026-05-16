@@ -3,6 +3,8 @@
 //
 //   /                         no piece open (Read shows empty hint)
 //   /<slug>                   piece with that slug open in Read
+//   /<slug>?v=X.Y.Z           that piece's vX.Y.Z snapshot, shown as a diff
+//                             against the current version (Marginalia browses)
 //   /unknown-slug             treated as "not found" — Read shows hint, URL kept
 //
 // Uses the History API so URLs are clean (no `#` prefix). The netlify.toml
@@ -17,9 +19,11 @@ const RESERVED = new Set(["admin", "admin.html", "api", "fonts", "assets"]);
 let handler = null;
 
 /**
- * Initialize the router with a path handler. The handler receives the current
- * path on init and on every popstate event. Caller is responsible for
- * resolving the path to a post (or empty state).
+ * Initialize the router with a path handler. The handler receives
+ *   (slug, path, version)
+ * on init and on every popstate event. Caller is responsible for
+ * resolving the slug to a post (or empty state) and the version to a
+ * history entry (or back to current).
  */
 export function initRouter(onPathChange) {
   handler = onPathChange;
@@ -28,11 +32,12 @@ export function initRouter(onPathChange) {
 }
 
 /**
- * Navigate to a new path. Triggers a pushState and emits a change to the
- * handler. No-op if the path matches the current URL.
+ * Navigate to a new path (pathname + optional search). Triggers a pushState
+ * and emits a change to the handler. No-op if the URL already matches.
  */
 export function navigate(path) {
-  if (currentPath() === path) return;
+  const current = window.location.pathname + window.location.search;
+  if (current === path) return;
   history.pushState(null, "", path);
   emit();
 }
@@ -51,10 +56,18 @@ export function currentSlug() {
   return seg;
 }
 
+/**
+ * Return the `v` query-param value, or null if absent.
+ */
+export function currentVersionParam() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("v") || null;
+}
+
 function currentPath() {
   return window.location.pathname;
 }
 
 function emit() {
-  if (handler) handler(currentSlug(), currentPath());
+  if (handler) handler(currentSlug(), currentPath(), currentVersionParam());
 }

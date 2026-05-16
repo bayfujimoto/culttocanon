@@ -2,6 +2,8 @@
 
 *Drafted 2026-05-15, in dialogue. Companion to `cult-to-canon-report_250515.md`.*
 
+> **Status: completed.** All phases (0–4) are built. This document is preserved as the historical design record of the May 2026 planning session; current work is tracked in subsequent docs, beginning with `versioning-implementation_260515.md`.
+
 This document records the design and architectural decisions reached in the planning session of May 15, 2026, and lays out the build sequence to follow. The conceptual frame lives in the companion report; this document addresses the practical questions of how the site will be made.
 
 ---

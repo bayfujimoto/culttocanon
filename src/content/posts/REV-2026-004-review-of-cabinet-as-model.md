@@ -1,5 +1,6 @@
 ---
 id: REV-2026-004
+version: 0.1.0
 slug: review-of-cabinet-as-model
 title: "Cabinet, as a Model"
 created: 2026-03-14

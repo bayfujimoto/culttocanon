@@ -1,5 +1,6 @@
 ---
 id: FRG-2026-002
+version: 0.1.0
 slug: fragment-on-the-amber-monitor
 title: Fragment on the Amber Monitor
 created: 2026-04-22

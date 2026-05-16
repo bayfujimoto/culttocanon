@@ -22,6 +22,8 @@ import {
   historyPathFor,
   wordCount,
 } from "../../lib/history.js";
+import { bumpVersion, bumpCategoryBetween } from "../lib/version.js";
+import { openBumpPicker }                   from "../lib/bump-picker.js";
 
 const HISTORY_LIMIT = 5;
 const sessionCommits = [];
@@ -48,42 +50,91 @@ export function initDispatch(container, callbacks = {}) {
 }
 
 /**
- * Public commit entry point — wired to `:w` in modes.js.
+ * Public picker-gated commit entry point — wired to `:update` in modes.js
+ * and to the Dispatch commit button. If there are pending changes, opens
+ * the bump-picker; on confirm, calls `triggerCommit(category)`.
  */
-export async function triggerCommit() {
+export function commitWithPicker() {
+  const { pendingChanges, allPosts } = getState();
+  if (!pendingChanges.length) {
+    flash("nothing to commit");
+    return;
+  }
+  openBumpPicker(pendingChanges, allPosts, {
+    onConfirm: (category) => triggerCommit(category),
+    onCancel:  () => {},
+  });
+}
+
+/**
+ * Lower-level: perform the commit with a known bump category.
+ *
+ * For each `edit`: the staged content's `version` is bumped per `category`,
+ * `revised` is auto-stamped, the content is re-serialized, and a history
+ * entry is appended for the *prior* body — labeled with the prior version
+ * and the category that produced it (Model A semantic; see history.js).
+ *
+ * For each `add`: the staged content is committed as-is. The blank-template
+ * default `version: "0.1.0"` rides through. No history entry is written —
+ * the version timeline begins on the first edit, at which point the v0.1.0
+ * snapshot is captured with category `"initial"`.
+ *
+ * @param {"patch"|"minor"|"major"} category  applies to edits only
+ */
+export async function triggerCommit(category) {
   const { pendingChanges } = getState();
   if (!pendingChanges.length) {
     flash("nothing to commit");
     return;
   }
 
-  const adds  = pendingChanges.filter(c => c.action === "add").map(c => c.id);
-  const edits = pendingChanges.filter(c => c.action === "edit").map(c => c.id);
-  const parts = [];
-  if (adds.length)  parts.push(`add ${adds.length}: ${adds.join(", ")}`);
-  if (edits.length) parts.push(`edit ${edits.length}: ${edits.join(", ")}`);
-  const message = parts.join("; ") || `commit ${pendingChanges.length} changes`;
-
   const snapshot = pendingChanges.slice();
+  const files    = snapshot.map(c => ({ filePath: c.filePath, content: c.content }));
 
-  // For every edit: stamp `revised` automatically and snapshot the prior
-  // committed body into the post's history sidecar. Both ride this commit.
-  const files = snapshot.map(c => ({ filePath: c.filePath, content: c.content }));
+  // Per-file commit headers, built as each change is processed.
+  // Format: `{id} v{version} [{category}]`.
+  const headers = [];
+
   for (const change of snapshot) {
+    if (change.action === "add") {
+      // Adds emit at the version the blank template stamped (default 0.1.0).
+      const { data } = parseFrontMatter(change.content);
+      const version  = data?.version || "0.1.0";
+      headers.push(`${change.id} v${version} [initial]`);
+      continue;
+    }
+
     if (change.action !== "edit") continue;
 
     const { data, body } = parseFrontMatter(change.content);
     if (!data || Object.keys(data).length === 0) continue; // unparseable — leave as-is
 
     // Prior state = the post as loaded in memory at app boot.
-    const prior = (getState().allPosts || []).find(p => p.id === change.id);
+    const prior        = (getState().allPosts || []).find(p => p.id === change.id);
+    const priorVersion = prior?.version || data.version || "0.1.0";
+    const newVersion   = bumpVersion(priorVersion, category);
+
+    // Append a history entry for the prior body.
     if (prior && typeof prior.body === "string") {
+      const existing = getHistoryById(change.id);
+      // Derive the category that produced `priorVersion`: "initial" if this
+      // is the first revision (history empty), otherwise inferred from the
+      // delta between the most recent entry's version and priorVersion.
+      const priorCategory = existing.versions.length === 0
+        ? "initial"
+        : bumpCategoryBetween(
+            existing.versions[existing.versions.length - 1].version,
+            priorVersion,
+          );
+
       const priorRevised = prior.revised || prior.created;
-      const next = appendVersion(getHistoryById(change.id), {
-        id:      change.id,
-        revised: toISODate(priorRevised),
-        words:   wordCount(prior.body),
-        body:    prior.body,
+      const next = appendVersion(existing, {
+        id:       change.id,
+        version:  priorVersion,
+        category: priorCategory,
+        revised:  toISODate(priorRevised),
+        words:    wordCount(prior.body),
+        body:     prior.body,
       });
       files.push({
         filePath: historyPathFor(change.id),
@@ -91,13 +142,20 @@ export async function triggerCommit() {
       });
     }
 
-    // Auto-stamp the revision date to the dispatch date, then re-serialize.
+    // Bump version, auto-stamp revised, re-serialize.
+    data.version = newVersion;
     data.revised = new Date();
     const restamped = serializePost({ ...data, body });
-    change.content = restamped;
+    change.content  = restamped;
     const f = files.find(x => x.filePath === change.filePath);
     if (f) f.content = restamped;
+
+    headers.push(`${change.id} v${newVersion} [${category}]`);
   }
+
+  const message = headers.length > 0
+    ? headers.join("; ")
+    : `commit ${pendingChanges.length} changes`;
 
   setState({ status: "saving", statusMessage: "committing…" });
 
@@ -107,12 +165,15 @@ export async function triggerCommit() {
       message,
     });
 
+    const addsCount  = snapshot.filter(c => c.action === "add").length;
+    const editsCount = snapshot.filter(c => c.action === "edit").length;
+
     if (result.ok) {
       sessionCommits.unshift({
         timestamp: new Date(),
         count:     snapshot.length,
-        adds:      adds.length,
-        edits:     edits.length,
+        adds:      addsCount,
+        edits:     editsCount,
         mode:      result.mode,
         ok:        true,
       });
@@ -126,8 +187,8 @@ export async function triggerCommit() {
       sessionCommits.unshift({
         timestamp: new Date(),
         count:     snapshot.length,
-        adds:      adds.length,
-        edits:     edits.length,
+        adds:      addsCount,
+        edits:     editsCount,
         ok:        false,
         error:     result.error,
       });
@@ -187,12 +248,12 @@ function renderHeader(state) {
 }
 
 function renderCommitButton(n) {
-  return `<button class="dispatch-btn" id="dispatch-commit">commit ${n}</button>`;
+  return `<button class="dispatch-btn" id="dispatch-commit">update ${n}</button>`;
 }
 
 function wireCommitButton() {
   const btn = document.getElementById("dispatch-commit");
-  if (btn) btn.addEventListener("click", triggerCommit);
+  if (btn) btn.addEventListener("click", commitWithPicker);
 }
 
 function renderPending(pending) {

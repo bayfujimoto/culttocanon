@@ -6,7 +6,7 @@
 //              `:` enters command mode. `?` toggles help (deferred).
 //   insert   — an editable field has focus; keys flow to it. Esc → normal.
 //   command  — the statusbar's state row is replaced with an input. The user
-//              types `:w`, `:q`, `:new`, `:e <id>`, etc.
+//              types `:update`, `:q`, `:new`, `:e <id>`, etc.
 //
 // Auto-transitions: focusing any editable input flips NORMAL → INSERT;
 // blurring takes INSERT → NORMAL. The COMMAND-mode input is excluded so it
@@ -33,7 +33,8 @@ function isMobile() {
  *   handlers = {
  *     onFocusChange(paneKey),
  *     onIndexNav('up'|'down'|'open'),
- *     onW():              save / commit
+ *     onUpdate():         save the open form (if any) and gate commit through
+ *                         the bump-picker (:update)
  *     onQ():              close the current post
  *     onNew():            new post
  *     onE(arg):           :e <id> — open by id
@@ -96,6 +97,12 @@ function onKeyDown(e) {
 
   if (mode === "command") {
     return onCommandKey(e);
+  }
+
+  // Picker mode (bump-picker open) — the picker installs its own capture-
+  // phase listener and owns all keystrokes. modes.js stays out of the way.
+  if (mode === "picker") {
+    return;
   }
 
   // Normal mode
@@ -198,7 +205,7 @@ function executeCommand(raw) {
   const [name, ...rest] = raw.split(/\s+/);
   const arg = rest.join(" ");
   switch (name) {
-    case "w":      handlers.onW?.(); break;
+    case "update": handlers.onUpdate?.(); break;
     case "q":      handlers.onQ?.(); break;
     case "new":    handlers.onNew?.(); break;
     case "e":      if (arg) handlers.onE?.(arg); break;

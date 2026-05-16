@@ -17,6 +17,7 @@ export function renderMarginalia(container, post, { allPosts, onSelect, versions
 
   const rows = [];
   rows.push(["id",         post.id]);
+  if (post.version) rows.push(["version", `v${escapeHTML(post.version)}`]);
   rows.push(["status",     `<span class="marginalia-status marginalia-status--${escapeAttr(post.status)}">${escapeHTML(post.status)}</span>`]);
   rows.push(["kind",       post.kind]);
   rows.push(["register",   post.register]);
@@ -26,9 +27,21 @@ export function renderMarginalia(container, post, { allPosts, onSelect, versions
   rows.push(["length",     `${post.length} words`]);
 
   if (versions?.length) {
-    const verHtml = versions.map((v, i) =>
-      `<a class="marginalia-version" data-idx="${i}" href="#v${i}">${escapeHTML(v.revised || "earlier")} · ${formatWords(v.words)}</a>`
-    ).join("<br>");
+    // Newest-first; each row shows version, revised date, and category, with
+    // category-class for color. URL fragment is `?v=X.Y.Z` so reloads land on
+    // the same diff. The click handler intercepts and goes through the SPA
+    // navigator (see public/main.js); the href is the no-JS fallback.
+    const verHtml = versions.slice().reverse().map((v) => {
+      const ver = v.version || "earlier";
+      const cat = v.category || "patch";
+      const rev = v.revised || "";
+      return `<a class="marginalia-version marginalia-version--${escapeAttr(cat)}" ` +
+             `data-version="${escapeAttr(ver)}" href="?v=${escapeAttr(ver)}">` +
+             `v${escapeHTML(ver)}` +
+             (rev ? ` · ${escapeHTML(rev)}` : "") +
+             ` · <span class="marginalia-version-cat">${escapeHTML(cat)}</span>` +
+             `</a>`;
+    }).join("<br>");
     rows.push(["versions", verHtml]);
   }
 
@@ -80,21 +93,18 @@ export function renderMarginalia(container, post, { allPosts, onSelect, versions
     });
   }
 
-  // Wire version clicks → show a diff of that version against the current text
+  // Wire version clicks → look up the entry by version string and fire the
+  // callback. The caller (public/main.js) navigates to `/{slug}?v={version}`
+  // so the URL stays in sync with what's displayed.
   if (onVersionSelect && versions?.length) {
     container.querySelectorAll(".marginalia-version").forEach(a => {
       a.addEventListener("click", (e) => {
         e.preventDefault();
-        const v = versions[Number(a.dataset.idx)];
+        const v = versions.find(x => x.version === a.dataset.version);
         if (v) onVersionSelect(v);
       });
     });
   }
-}
-
-function formatWords(n) {
-  const w = Number(n) || 0;
-  return w >= 1000 ? `${(w / 1000).toFixed(1)}k w` : `${w} w`;
 }
 
 function formatDate(d) {

@@ -674,3 +674,37 @@ textarea.form-input {
 .dispatch-history-result { color: var(--accent-green); text-transform: uppercase; }
 
 .dispatch-history-row.is-error .dispatch-history-result { color: var(--accent-red); }
+
+/* ── Bump picker — opened by :update in the statusbar state row ──────────── */
+.shell-picker-options {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.shell-picker-option {
+  padding: 1px 6px;
+  border-radius: 2px;
+  color: var(--fg-muted);
+  white-space: nowrap;
+  cursor: default;
+}
+
+.shell-picker-option.is-selected {
+  background: var(--accent-violet);
+  color: var(--bg);
+}
+
+.shell-picker-option kbd {
+  margin-right: 2px;
+}
+
+.shell-picker-context {
+  margin-left: auto;
+  color: var(--fg-dim);
+  font-size: var(--text-xs);
+  letter-spacing: 0.02em;
+}
+
+.shell-status-mode--picker { color: var(--accent-violet); }
+

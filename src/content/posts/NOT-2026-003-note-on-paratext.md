@@ -1,5 +1,6 @@
 ---
 id: NOT-2026-003
+version: 0.1.0
 slug: note-on-paratext
 title: Note on Paratext
 created: 2026-05-08

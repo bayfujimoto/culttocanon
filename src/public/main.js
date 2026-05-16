@@ -68,7 +68,7 @@ const PUBLIC_HELP = {
 
 // ── Shell ────────────────────────────────────────────────────────────────────
 renderShell(document.getElementById("app"), {
-  identity: { name: "CULT_TO_CANON", version: "v0.1.0" },
+  identity: { name: "CULT_TO_CANON", version: "v" + __THESIS_VERSION__ },
   panes: [
     { key: "b", label: "Browse" },
     { key: "r", label: "Read" },
@@ -91,31 +91,69 @@ const byId   = new Map(posts.map(p => [p.id,   p]));
 let currentPost = null;
 let diffOpen    = false;   // true while the Read pane shows a version diff
 
-// ── Render helpers (do not touch the URL) ────────────────────────────────────
+// ── Render helpers ──────────────────────────────────────────────────────────
+// State lives in the URL: `/<slug>` shows the post; `/<slug>?v=X.Y.Z` shows
+// the diff for that version. The router resolves the URL into one of the
+// showPost / showDiff calls below; user actions (clicking a version row,
+// closing the diff) navigate() to a new URL and let the router re-resolve.
+
+// Marginalia uses identical options whether we're in post or diff mode, so
+// the version list stays clickable while a diff is open.
+function marginaliaOptionsFor(post) {
+  return {
+    allPosts:        posts,
+    onSelect:        openPost,
+    versions:        getHistoryById(post.id).versions,
+    onVersionSelect: (entry) => navigate(`/${post.slug}?v=${entry.version}`),
+  };
+}
+
 function showPost(post) {
   currentPost = post;
   diffOpen    = false;
   renderPost(post, readBody);
-  renderMarginalia(margBody, post, {
-    allPosts:        posts,
-    onSelect:        openPost,
-    versions:        getHistoryById(post.id).versions,
-    onVersionSelect: (version) => showDiff(post, version),
-  });
+  renderMarginalia(margBody, post, marginaliaOptionsFor(post));
   setBrowseSelected(post.id);
 }
 
-// Show an inline unified diff of `version` against the current post body.
-// Esc or the banner's [×] returns to the normal reading view.
-function showDiff(post, version) {
-  diffOpen = true;
-  renderDiff(post, version, readBody, { onClose: closeDiff });
+// Show an inline unified diff of `entry` against its immediate predecessor.
+// Backward-diff semantic: the diff shows the changes that produced `entry`.
+// For the first entry (no predecessor) the diff runs against an empty body,
+// so the initial publish renders as all-additions.
+// Esc or the banner's "view current" button navigates back to the post.
+function showDiff(post, entry) {
+  currentPost = post;
+  diffOpen    = true;
+
+  const history = getHistoryById(post.id).versions;
+  const idx     = history.findIndex(e => e.version === entry.version);
+
+  const oldBody  = idx > 0 ? history[idx - 1].body : "";
+  const newBody  = entry.body || "";
+  const prevEntry = idx > 0                       ? history[idx - 1] : null;
+  const nextEntry = idx >= 0 && idx + 1 < history.length ? history[idx + 1] : null;
+
+  renderDiff(readBody, {
+    oldBody,
+    newBody,
+    banner: {
+      id:       post.id,
+      version:  entry.version,
+      category: entry.category,
+      date:     entry.revised,
+    },
+    onPrev:  prevEntry ? () => navigate(`/${post.slug}?v=${prevEntry.version}`) : null,
+    onNext:  nextEntry ? () => navigate(`/${post.slug}?v=${nextEntry.version}`) : null,
+    onClose: closeDiff,
+  });
+
+  renderMarginalia(margBody, post, marginaliaOptionsFor(post));
+  setBrowseSelected(post.id);
 }
 
 function closeDiff() {
-  if (!diffOpen) return;
-  diffOpen = false;
-  if (currentPost) renderPost(currentPost, readBody);
+  if (!diffOpen || !currentPost) return;
+  navigate(`/${currentPost.slug}`);
 }
 
 function showEmpty() {
@@ -152,14 +190,27 @@ function openPost(post) {
 renderBrowse(browseBody, posts, { onSelect: openPost });
 
 // ── Wire the router as the single source of truth ────────────────────────────
-initRouter((slug, path) => {
+initRouter((slug, path, version) => {
   if (!slug) {
     showEmpty();
     return;
   }
   const post = bySlug.get(slug) || byId.get(slug);
-  if (post) showPost(post);
-  else      showNotFound(path);
+  if (!post) {
+    showNotFound(path);
+    return;
+  }
+  if (version) {
+    const entry = getHistoryById(post.id).versions.find(e => e.version === version);
+    if (entry) {
+      showDiff(post, entry);
+    } else {
+      flashStatus(`no version v${version} for ${post.slug}`);
+      showPost(post);
+    }
+  } else {
+    showPost(post);
+  }
 });
 
 // ── Wire the mode engine ─────────────────────────────────────────────────────

@@ -12,7 +12,7 @@
 //                     renderEdit(post) in Manuscript
 //                          │
 //                          ▼
-//                     user edits, Save (or :w) stages a pending change
+//                     user edits, Save (or :update) stages a pending change
 //                          │
 //                          ▼
 //                     Dispatch shows it; commit button bundles → /api/commit-all
@@ -30,7 +30,7 @@ import { initRouter, navigate, currentRoute } from "./lib/router.js";
 import { initModes, getFocusedPane, flashStatus } from "./lib/modes.js";
 
 // ── Keymap legend (single keystrokes only) + `?` help reference ──────────────
-// j/k/Enter only fire when Index is focused. Ex-commands (:w/:q/:new/:e) live
+// j/k/Enter only fire when Index is focused. Ex-commands (:update/:q/:new/:e) live
 // in the help overlay, not the inline legend.
 const ADMIN_KEYMAP_GROUPS = {
   i: [["j/k", "navigate"], ["Enter", "open"], ["m", "Manuscript"],
@@ -51,7 +51,7 @@ const ADMIN_HELP = {
     { heading: "Editing", rows: [
       ["(focus a field)", "enter INSERT"], ["Esc", "leave field → NORMAL"] ] },
     { heading: "Command (:)", rows: [
-      [":w", "save & commit"], [":q", "close post"], [":new", "new post"],
+      [":update", "save & commit"], [":q", "close post"], [":new", "new post"],
       [":e <id|slug>", "open by id/slug"] ] },
     { heading: "General", rows: [
       ["Esc", "focus Index / clear error"], ["?", "toggle this help"] ] },
@@ -71,12 +71,12 @@ import {
   renderNew,
 } from "./views/manuscript.js";
 
-import { initDispatch, triggerCommit } from "./views/dispatch.js";
-import { save as saveForm }            from "./forms/post-form.js";
+import { initDispatch, commitWithPicker } from "./views/dispatch.js";
+import { save as saveForm }               from "./forms/post-form.js";
 
 // ── Shell ────────────────────────────────────────────────────────────────────
 renderShell(document.getElementById("app"), {
-  identity: { name: "CULT_TO_CANON", version: "v0.1.0" },
+  identity: { name: "CULT_TO_CANON", version: "v" + __THESIS_VERSION__ },
   panes: [
     { key: "i", label: "Index" },
     { key: "m", label: "Manuscript" },
@@ -140,12 +140,13 @@ initModes({
     else if (action === "up") moveIndexCursor("up");
     else if (action === "open") activateIndexCursor();
   },
-  onW: () => {
-    // If a form is open and dirty, save it first; then commit.
+  onUpdate: () => {
+    // If a form is open, save it first to stage the change; then gate the
+    // commit through the bump-picker (which calls triggerCommit on confirm).
     if (getState().view === "edit" || getState().view === "new") {
       saveForm();
     }
-    triggerCommit();
+    commitWithPicker();
   },
   onQ: () => {
     navigate("#/");

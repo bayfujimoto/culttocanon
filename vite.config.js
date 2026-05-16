@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import { githubWritePlugin } from "./src/admin/plugin/github-write.js";
+import { thesisVersionPlugin } from "./vite-plugin-thesis-version.js";
 
 // Two entry points share a single Vite build:
 //   /          → index.html       (public site, [data-theme="public"])
@@ -15,7 +16,7 @@ import { githubWritePlugin } from "./src/admin/plugin/github-write.js";
 export default defineConfig({
   root: ".",
   publicDir: "public",
-  plugins: [githubWritePlugin()],
+  plugins: [githubWritePlugin(), thesisVersionPlugin()],
   build: {
     outDir: "dist",
     emptyOutDir: true,

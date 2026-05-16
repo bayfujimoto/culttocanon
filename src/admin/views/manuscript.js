@@ -27,7 +27,7 @@ export function renderDashboard(container, allPosts) {
       </dl>
       <div class="dashboard-hints">
         <p><kbd>i</kbd> focus Index · <kbd>j</kbd>/<kbd>k</kbd> navigate · <kbd>Enter</kbd> open</p>
-        <p><kbd>:</kbd><kbd>new</kbd> new piece · <kbd>:</kbd><kbd>w</kbd> commit</p>
+        <p><kbd>:</kbd><kbd>new</kbd> new piece · <kbd>:</kbd><kbd>update</kbd> commit</p>
       </div>
     </div>
   `;
@@ -45,6 +45,7 @@ export function renderNew(container, allPosts) {
   const id   = nextId(kind, year, allPosts.map(p => p.id));
   const blank = {
     id,
+    version:    "0.1.0",
     slug:       "",
     title:      "",
     created:    new Date(),
