@@ -139,9 +139,25 @@ function swap(img) {
   parent.replaceChild(canvas, img);
   if (figcaption) parent.insertBefore(figcaption, canvas.nextSibling);
 
-  const W = img.naturalWidth  || img.width;
-  const H = img.naturalHeight || img.height;
-  if (!W || !H) return;
+  const natW = img.naturalWidth  || img.width;
+  const natH = img.naturalHeight || img.height;
+  if (!natW || !natH) return;
+  const aspect = natH / natW;
+
+  // On iOS only, size the backing buffer to the *displayed* device-pixel box
+  // instead of the dither's tiny natural size. iOS WebKit shows periodic black
+  // bands when a small canvas is CSS-magnified with image-rendering: pixelated
+  // (its tiled-canvas nearest-neighbor sampler reads past tile edges). Drawing
+  // the dither magnified into a buffer that already matches the display box
+  // means CSS never scales the canvas, so the buggy path is never hit.
+  //
+  // Every other browser keeps the natural-size buffer + CSS pixelated upscale,
+  // which renders the chunky low-density dither we want and is unaffected by
+  // the WebKit bug. (On HiDPI desktops, device-pixel sizing would otherwise
+  // double the dither density — not what we want there.)
+  const { W, H } = isIOS()
+    ? targetBufferSize(canvas, aspect, natW, natH)
+    : { W: natW, H: natH };
 
   canvas.width  = W;
   canvas.height = H;
@@ -154,7 +170,7 @@ function swap(img) {
   ditherImg.decoding = "async";
   ditherImg.onload = () => {
     ctx.drawImage(ditherImg, 0, 0, W, H);
-    initInteraction(canvas, ctx, ditherImg, W, H, {
+    initInteraction(canvas, ctx, ditherImg, W, H, aspect, natW, {
       quantBwUrl: img.dataset.quantbw || "",
       quantUrl:   img.dataset.quant   || "",
       sourceUrl:  img.dataset.source  || "",
@@ -164,9 +180,35 @@ function swap(img) {
   ditherImg.src = img.currentSrc || img.src;
 }
 
+// True on iOS / iPadOS (all browsers there are WebKit). Covers classic iOS
+// UAs and iPadOS 13+, which reports a Mac UA but exposes multi-touch.
+let _isIOS = null;
+function isIOS() {
+  if (_isIOS !== null) return _isIOS;
+  const ua = navigator.userAgent || "";
+  const classic = /iPad|iPhone|iPod/.test(ua);
+  const iPadOS13 = navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+  _isIOS = classic || iPadOS13;
+  return _isIOS;
+}
+
+// Compute the canvas backing-buffer size from the laid-out CSS box and the
+// device pixel ratio. Falls back to the dither's natural size if the element
+// isn't laid out yet (detached / display:none) so we never make a 0-sized
+// buffer. Height is derived from W*aspect (not the measured rect height) so
+// the two can't drift apart on sub-pixel rounding; CSS height:auto matches it.
+function targetBufferSize(canvas, aspect, natW, natH) {
+  const cssW = canvas.getBoundingClientRect().width;
+  if (!cssW) return { W: natW, H: natH };
+  const dpr = window.devicePixelRatio || 1;
+  const W = Math.max(1, Math.round(cssW * dpr));
+  const H = Math.max(1, Math.round(W * aspect));
+  return { W, H };
+}
+
 // ── Interaction state and animation loop ───────────────────────────────────
 
-function initInteraction(canvas, ctx, ditherImg, W, H, opts) {
+function initInteraction(canvas, ctx, ditherImg, W, H, aspect, natW, opts) {
   const state = {
     revealed: false,
     click:    null,
@@ -178,28 +220,55 @@ function initInteraction(canvas, ctx, ditherImg, W, H, opts) {
     revertTimer:   null,
   };
 
-  // Per-cell random phase. Re-rolled on every click for a fresh dissolution
-  // pattern; deterministic across frames within one transition.
-  const COLS = Math.ceil(W / CW);
-  const ROWS = Math.ceil(H / CH);
-  const phase = new Float32Array(COLS * ROWS);
-  rerollPhase(phase);
-
-  if (!opts.noReveal) {
-    canvas.addEventListener("click", () => onClick(state, phase, opts, ctx, ditherImg, W, H));
-    canvas.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        onClick(state, phase, opts, ctx, ditherImg, W, H);
-      }
-    });
-  }
-
   // Hover trail is pointer-device only — skip on touch-primary devices (iOS,
   // Android) where mousemove doesn't fire and the effect would never trigger.
   const hasHover = window.matchMedia("(hover: hover)").matches;
 
+  // Geometry is mutable: the iOS ResizeObserver rebuilds it when the displayed
+  // box changes (rotation), since a stale device-pixel buffer would get
+  // CSS-magnified again and re-trigger the black-band bug. The rAF loop reads
+  // live values. Cell size and hover radius scale by how much the buffer was
+  // enlarged vs the dither's natural size (bufScale = nextW / natW), so the
+  // *visible* dissolve granularity and hover footprint stay constant whether
+  // the buffer is natural-size (desktop) or device-pixel-sized (iOS).
+  const geom = { W, H, COLS: 0, ROWS: 0, cw: 0, ch: 0, hoverR: 0 };
+  let phase = null;
   let trail = null, clean = null;
+
+  function rebuildGeometry(nextW, nextH) {
+    const bufScale = nextW / natW;
+    geom.W = nextW;
+    geom.H = nextH;
+    geom.cw = Math.max(1, Math.round(CW * bufScale));
+    geom.ch = Math.max(1, Math.round(CH * bufScale));
+    geom.hoverR = Math.max(1, Math.round(HOVER_RADIUS * bufScale));
+    geom.COLS = Math.ceil(nextW / geom.cw);
+    geom.ROWS = Math.ceil(nextH / geom.ch);
+    // Per-cell random phase. Re-rolled on every click for a fresh dissolution
+    // pattern; deterministic across frames within one transition.
+    phase = new Float32Array(geom.COLS * geom.ROWS);
+    rerollPhase(phase);
+    if (hasHover) {
+      // Off-screen buffer for the hover trail. Seeded from the dither pixels;
+      // flicker writes into it and a per-frame decay restores flipped pixels.
+      ctx.drawImage(ditherImg, 0, 0, nextW, nextH);
+      trail = ctx.getImageData(0, 0, nextW, nextH);
+      // Clean snapshot used as ground truth for decay restoration.
+      clean = new Uint8Array(trail.data);
+    }
+  }
+  rebuildGeometry(W, H);
+
+  if (!opts.noReveal) {
+    canvas.addEventListener("click", () => onClick(state, phase, opts));
+    canvas.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        onClick(state, phase, opts);
+      }
+    });
+  }
+
   if (hasHover) {
     canvas.addEventListener("mousemove", (e) => {
       const r = canvas.getBoundingClientRect();
@@ -218,25 +287,45 @@ function initInteraction(canvas, ctx, ditherImg, W, H, opts) {
       state.hover.speed = 0;
       state.hover.lastMove = null;
     });
+  }
 
-    // Off-screen buffer for the hover trail. Seeded from the dither pixels;
-    // flicker writes into it and a per-frame decay restores flipped pixels.
-    ctx.drawImage(ditherImg, 0, 0, W, H);
-    trail = ctx.getImageData(0, 0, W, H);
-    // Clean snapshot used as ground truth for decay restoration.
-    clean = new Uint8Array(trail.data);
+  // iOS only: rebuild the device-pixel buffer when the displayed width changes
+  // (viewport rotation, pane resize), or a stale buffer gets CSS-magnified
+  // again and re-triggers the black-band bug. Other browsers use the fixed
+  // natural-size buffer and let CSS upscale fluidly — no rebuild needed.
+  if (isIOS()) {
+    // Guard against the initial fire and no-op resizes so we don't reroll the
+    // dissolve phase on every layout tick.
+    const ro = new ResizeObserver(() => {
+      const cssW = canvas.getBoundingClientRect().width;
+      if (!cssW) return;
+      const dpr = window.devicePixelRatio || 1;
+      const nextW = Math.max(1, Math.round(cssW * dpr));
+      if (nextW === geom.W) return;
+      const nextH = Math.max(1, Math.round(nextW * aspect));
+      canvas.width  = nextW;
+      canvas.height = nextH;
+      canvas.setAttribute("width",  String(nextW));
+      canvas.setAttribute("height", String(nextH));
+      ctx.imageSmoothingEnabled = false;
+      rebuildGeometry(nextW, nextH);
+      // Cancel any in-flight transition — its phase array is now wrong-sized.
+      state.click = null;
+      render(state, phase, opts, ctx, ditherImg, geom, performance.now(), trail, clean);
+    });
+    ro.observe(canvas);
   }
 
   // Start the rAF loop. It's idle (single drawImage per frame) when the
   // canvas is at rest and no cursor is over it.
   function frame(now) {
-    render(state, phase, opts, ctx, ditherImg, W, H, COLS, ROWS, now, trail, clean);
+    render(state, phase, opts, ctx, ditherImg, geom, now, trail, clean);
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
 }
 
-function onClick(state, phase, opts, ctx, ditherImg, W, H) {
+function onClick(state, phase, opts) {
   // Ensure layers are loaded before starting the animation. If the click
   // arrives before the lazy load completes, we kick off loading and bail —
   // a second click will start the animation once the layers are available.
@@ -314,7 +403,8 @@ function rnd(n) {
 
 // ── Rendering ──────────────────────────────────────────────────────────────
 
-function render(state, phase, opts, ctx, ditherImg, W, H, COLS, ROWS, now, trail, clean) {
+function render(state, phase, opts, ctx, ditherImg, geom, now, trail, clean) {
+  const { W, H, COLS, ROWS, cw, ch, hoverR } = geom;
   // iOS Safari may reset imageSmoothingEnabled between frames.
   ctx.imageSmoothingEnabled = false;
   // Determine current mode.
@@ -334,7 +424,7 @@ function render(state, phase, opts, ctx, ditherImg, W, H, COLS, ROWS, now, trail
     if (state.revealed && state.layers) {
       ctx.drawImage(state.layers.source, 0, 0, W, H);
     } else if (trail && clean) {
-      applyHoverFlicker(state.hover, ctx, ditherImg, W, H, now, trail, clean);
+      applyHoverFlicker(state.hover, W, H, hoverR, now, trail, clean);
       ctx.putImageData(trail, 0, 0);
     } else {
       ctx.drawImage(ditherImg, 0, 0, W, H);
@@ -385,12 +475,12 @@ function render(state, phase, opts, ctx, ditherImg, W, H, COLS, ROWS, now, trail
         else                    layer = ditherImg;
       }
       const { sxr, syr } = layerScale(layer);
-      const dw = Math.min(CW, W - x*CW);
-      const dh = Math.min(CH, H - y*CH);
+      const dw = Math.min(cw, W - x*cw);
+      const dh = Math.min(ch, H - y*ch);
       ctx.drawImage(
         layer,
-        x*CW*sxr, y*CH*syr, dw*sxr, dh*syr,
-        x*CW,     y*CH,     dw,     dh
+        x*cw*sxr, y*ch*syr, dw*sxr, dh*syr,
+        x*cw,     y*ch,     dw,     dh
       );
     }
   }
@@ -404,7 +494,7 @@ function render(state, phase, opts, ctx, ditherImg, W, H, COLS, ROWS, now, trail
 // movement speed — this is the disturbance. The caller composites the buffer
 // onto the canvas with putImageData.
 
-function applyHoverFlicker(hover, _ctx, _ditherImg, W, H, now, trail, clean) {
+function applyHoverFlicker(hover, W, H, hoverR, now, trail, clean) {
   const td = trail.data;
   const tBucket = Math.floor(now / HOVER_BUCKET_MS);
 
@@ -425,7 +515,7 @@ function applyHoverFlicker(hover, _ctx, _ditherImg, W, H, now, trail, clean) {
   const speedFactor = Math.min(hover.speed / 8, 1);
   if (speedFactor <= 0) return;
 
-  const hr = HOVER_RADIUS;
+  const hr = hoverR;
   const hx = hover.x, hy = hover.y;
 
   const x0 = Math.max(0, Math.floor(hx - hr));
