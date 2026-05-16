@@ -1,0 +1,12 @@
+{
+  "id": "ESS-2026-000",
+  "versions": [
+    {
+      "version": "0.1.0",
+      "category": "initial",
+      "revised": "2026-05-15",
+      "words": 143,
+      "body": "*This is a v0.1.0 placeholder. The site thesis — defining what* cult *and* canon *mean for Cult to Canon, and what it means to write under that frame — will be drafted into this post across successive minor and major bumps. Scaffolding lives in `docs/thesis-reading-list_260515.md` (bibliography to ground the writing) and `docs/writing-practice_260515.md` (working notes on what contribution means). Prior versions of the thesis itself will be preserved in the Marginalia version history.*\n\nThree premises hold provisionally:\n\n- Canonization is a process, not a state, and the writer is one of its operators.\n- *Cult* and *canon* are not opposed; they are the two ends of a trajectory, and the same object can occupy both at once.\n- The site is a workbench at which that trajectory is observed, named, and occasionally accelerated.\n\nThe case for each will be the work of subsequent versions."
+    }
+  ]
+}

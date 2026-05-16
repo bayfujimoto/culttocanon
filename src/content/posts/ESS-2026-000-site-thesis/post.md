@@ -1,17 +1,22 @@
 ---
 id: ESS-2026-000
-version: 0.1.0
+version: 0.2.0
 slug: site-thesis
 title: Site Thesis
 created: 2026-05-15
+revised: 2026-05-16
 status: draft
 kind: essay
 register: academic
 confidence: possible
-subjects: [site-thesis, canon-formation]
-links: []
+subjects:
+  - site-thesis
+  - canon-formation
 visibility: public
 ---
+
+
+![](images/image-dither.jpg)
 
 *This is a v0.1.0 placeholder. The site thesis — defining what* cult *and* canon *mean for Cult to Canon, and what it means to write under that frame — will be drafted into this post across successive minor and major bumps. Scaffolding lives in `docs/thesis-reading-list_260515.md` (bibliography to ground the writing) and `docs/writing-practice_260515.md` (working notes on what contribution means). Prior versions of the thesis itself will be preserved in the Marginalia version history.*
 
