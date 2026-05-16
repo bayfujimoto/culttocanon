@@ -121,9 +121,8 @@ body {
 }
 
 /* ── Three-pane grid ─────────────────────────────────────────────────────────
-   Asymmetric: a full-height left pane, then a right column split horizontally
-   into two stacked panes. Sizes are CSS custom properties so a later resize
-   module (ported from bayfujimoto.com's shell.js) can write to them directly.
+   Three equal columns separated by two draggable vertical gutters. Sizes are
+   CSS custom properties so the resize module can write to them directly.
    ───────────────────────────────────────────────────────────────────────── */
 
 .shell-grid {
@@ -131,25 +130,36 @@ body {
   min-height: 0;
   min-width: 0;
   display: grid;
-  grid-template-columns: var(--pane-a-w, 30%) var(--gutter-size) 1fr;
+  grid-template-columns: var(--pane-a-w, 35%) var(--gutter-size) var(--pane-b-w, 40%) var(--gutter-size) 1fr;
   grid-template-rows: 1fr;
   padding: 18px 14px 10px;
   gap: 0;
 }
 
-.shell-grid-right {
-  display: grid;
-  grid-template-rows: var(--pane-b-h, 62%) 16px 1fr;
-  min-height: 0;
-  min-width: 0;
-}
-
-/* Marginalia collapsed: Read (pane B) takes the freed space; pane C is a strip. */
-.shell-grid-right.is-collapsed {
-  grid-template-rows: 1fr 16px var(--pane-c-collapsed-h, 1.4em);
+/* Marginalia collapsed: pane C shrinks to a vertical strip on the right edge. */
+.shell-grid.is-collapsed {
+  grid-template-columns: var(--pane-a-w, 35%) var(--gutter-size) 1fr var(--gutter-size) var(--pane-c-collapsed-w, 2em);
 }
 
 .shell-pane.is-collapsed .shell-pane-body {
+  display: none;
+}
+
+/* Collapsed right strip: clip content, show pointer to signal it's clickable. */
+.shell-pane.is-collapsed {
+  overflow: hidden;
+  cursor: pointer;
+}
+
+/* Rotate the pane label 90° when collapsed to a right strip. */
+.shell-pane.is-collapsed .shell-pane-label {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(90deg);
+  white-space: nowrap;
+}
+
+.shell-pane.is-collapsed .shell-pane-collapse {
   display: none;
 }
 
@@ -254,8 +264,6 @@ body {
 .shell-grid.is-resizing * { user-select: none; }
 .shell-grid.is-resizing.is-resizing-v,
 .shell-grid.is-resizing.is-resizing-v * { cursor: col-resize; }
-.shell-grid.is-resizing.is-resizing-h,
-.shell-grid.is-resizing.is-resizing-h * { cursor: row-resize; }
 
 .shell-gutter::after {
   content: '';
@@ -402,9 +410,6 @@ body {
     display: flex;
     flex-direction: column;
     padding: 8px 8px 0;
-  }
-  .shell-grid-right {
-    display: contents;
   }
   .shell-pane:not(.is-mobile-active) {
     display: none;

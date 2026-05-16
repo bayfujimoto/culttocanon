@@ -268,6 +268,11 @@ export function setMode(m) {
 
 export function setFocusedPane(key) {
   focusedPane = key;
+  // If the target pane is collapsed, expand it before focusing.
+  const targetPane = document.getElementById(`pane-${key}`);
+  if (targetPane?.classList.contains("is-collapsed")) {
+    targetPane.click();
+  }
   document.querySelectorAll(".shell-pane").forEach((p) => {
     p.classList.toggle("is-focused", p.dataset.pane === key);
   });

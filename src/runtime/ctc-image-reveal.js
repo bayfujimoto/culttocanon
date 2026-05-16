@@ -30,11 +30,13 @@
 import "./ctc-image-reveal.css";
 
 const CW = 8, CH = 10;
-const DUR = 1250;
+const DUR = 625;
+const REVERT_DELAY = 5000;
 const WIN = 0.5;
-const HOVER_RADIUS = 14;
-const HOVER_FLIP_PROB = 0.35;
-const HOVER_BUCKET_MS = 80;
+const HOVER_RADIUS = 10;
+const HOVER_FLIP_PROB = 0.08;
+const HOVER_BUCKET_MS = 40;
+const HOVER_TRAIL_DECAY = 0.32; // probability per frame that a flipped pixel restores
 
 // Ink / paper colors for the hover-flip detection. Match the Vite plugin's
 // emitted dither colors and the public theme tokens.
@@ -175,17 +177,18 @@ function initInteraction(canvas, ctx, ditherImg, W, H, opts) {
   const state = {
     revealed: false,
     click:    null,
-    hover:    { x: null, y: null },
+    hover:    { x: null, y: null, speed: 0, lastMove: null },
     // Lazy-loaded layers; populated on first click.
-    layers:   null,
+    layers:        null,
     layersLoading: false,
     layersError:   false,
+    revertTimer:   null,
   };
 
   // Per-cell random phase. Re-rolled on every click for a fresh dissolution
   // pattern; deterministic across frames within one transition.
-  const COLS = Math.floor(W / CW);
-  const ROWS = Math.floor(H / CH);
+  const COLS = Math.ceil(W / CW);
+  const ROWS = Math.ceil(H / CH);
   const phase = new Float32Array(COLS * ROWS);
   rerollPhase(phase);
 
@@ -201,18 +204,33 @@ function initInteraction(canvas, ctx, ditherImg, W, H, opts) {
 
   canvas.addEventListener("mousemove", (e) => {
     const r = canvas.getBoundingClientRect();
-    state.hover.x = (e.clientX - r.left) * (canvas.width  / r.width);
-    state.hover.y = (e.clientY - r.top)  * (canvas.height / r.height);
+    const nx = (e.clientX - r.left) * (canvas.width  / r.width);
+    const ny = (e.clientY - r.top)  * (canvas.height / r.height);
+    const dx = nx - (state.hover.x ?? nx);
+    const dy = ny - (state.hover.y ?? ny);
+    state.hover.x = nx;
+    state.hover.y = ny;
+    state.hover.speed = Math.hypot(dx, dy);
+    state.hover.lastMove = performance.now();
   });
   canvas.addEventListener("mouseleave", () => {
     state.hover.x = null;
     state.hover.y = null;
+    state.hover.speed = 0;
+    state.hover.lastMove = null;
   });
+
+  // Off-screen buffer for the hover trail. Seeded from the dither pixels;
+  // flicker writes into it and a per-frame decay restores flipped pixels.
+  ctx.drawImage(ditherImg, 0, 0, W, H);
+  const trail = ctx.getImageData(0, 0, W, H);
+  // Clean snapshot used as ground truth for decay restoration.
+  const clean = new Uint8Array(trail.data);
 
   // Start the rAF loop. It's idle (single drawImage per frame) when the
   // canvas is at rest and no cursor is over it.
   function frame(now) {
-    render(state, phase, opts, ctx, ditherImg, W, H, COLS, ROWS, now);
+    render(state, phase, opts, ctx, ditherImg, W, H, COLS, ROWS, now, trail, clean);
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
@@ -227,6 +245,8 @@ function onClick(state, phase, opts, ctx, ditherImg, W, H) {
     loadLayers(opts).then(layers => {
       state.layers = layers;
       state.layersLoading = false;
+      // Start the animation immediately — no second click needed.
+      startTransition(state, phase);
     }).catch(err => {
       state.layersError = true;
       state.layersLoading = false;
@@ -236,12 +256,22 @@ function onClick(state, phase, opts, ctx, ditherImg, W, H) {
   }
   if (!state.layers) return;
 
-  state.click = {
-    time: performance.now(),
-    direction: state.revealed ? "out" : "in",
-  };
+  startTransition(state, phase);
+}
+
+function startTransition(state, phase) {
+  clearTimeout(state.revertTimer);
+  state.revertTimer = null;
+  const direction = state.revealed ? "out" : "in";
+  state.click = { time: performance.now(), direction };
   rerollPhase(phase);
   state.revealed = !state.revealed;
+  if (direction === "in") {
+    state.revertTimer = setTimeout(() => {
+      state.revertTimer = null;
+      if (state.revealed) startTransition(state, phase);
+    }, REVERT_DELAY);
+  }
 }
 
 // ── Layer loading ──────────────────────────────────────────────────────────
@@ -284,7 +314,7 @@ function rnd(n) {
 
 // ── Rendering ──────────────────────────────────────────────────────────────
 
-function render(state, phase, opts, ctx, ditherImg, W, H, COLS, ROWS, now) {
+function render(state, phase, opts, ctx, ditherImg, W, H, COLS, ROWS, now, trail, clean) {
   // Determine current mode.
   let dir = null, progress = 1;
   if (state.click) {
@@ -302,8 +332,8 @@ function render(state, phase, opts, ctx, ditherImg, W, H, COLS, ROWS, now) {
     if (state.revealed && state.layers) {
       ctx.drawImage(state.layers.source, 0, 0, W, H);
     } else {
-      ctx.drawImage(ditherImg, 0, 0, W, H);
-      if (!state.revealed) applyHoverFlicker(state.hover, ctx, ditherImg, W, H, now);
+      applyHoverFlicker(state.hover, ctx, ditherImg, W, H, now, trail, clean);
+      ctx.putImageData(trail, 0, 0);
     }
     return;
   }
@@ -312,6 +342,24 @@ function render(state, phase, opts, ctx, ditherImg, W, H, COLS, ROWS, now) {
   // stages on top.
   const baseLayer = dir === "in" ? ditherImg : state.layers.source;
   ctx.drawImage(baseLayer, 0, 0, W, H);
+
+  // Each layer may differ in pixel size from the canvas buffer (e.g. on
+  // retina the canvas is sized to the @2x dither but the lazily-loaded
+  // source/quant layers are 1x). Sample each layer from its own pixel
+  // space, scaled into the canvas cell, so the per-cell crop stays
+  // correct regardless of the size mismatch. Scale factors are cached
+  // per layer per frame — layer dimensions don't change between frames.
+  const scaleCache = new Map();
+  function layerScale(layer) {
+    let s = scaleCache.get(layer);
+    if (!s) {
+      const lw = layer.naturalWidth  || layer.width;
+      const lh = layer.naturalHeight || layer.height;
+      s = { sxr: lw / W, syr: lh / H };
+      scaleCache.set(layer, s);
+    }
+    return s;
+  }
 
   for (let y = 0; y < ROWS; y++) {
     for (let x = 0; x < COLS; x++) {
@@ -332,52 +380,68 @@ function render(state, phase, opts, ctx, ditherImg, W, H, COLS, ROWS, now) {
         else if (cellT < 2/3)   layer = state.layers.quantBw;
         else                    layer = ditherImg;
       }
-      ctx.drawImage(layer, x*CW, y*CH, CW, CH, x*CW, y*CH, CW, CH);
+      const { sxr, syr } = layerScale(layer);
+      const dw = Math.min(CW, W - x*CW);
+      const dh = Math.min(CH, H - y*CH);
+      ctx.drawImage(
+        layer,
+        x*CW*sxr, y*CH*syr, dw*sxr, dh*syr,
+        x*CW,     y*CH,     dw,     dh
+      );
     }
   }
 }
 
 // ── Hover flicker ──────────────────────────────────────────────────────────
 //
-// Small-region getImageData/putImageData over the dither rest state. Reads
-// the existing canvas pixels, flips a random ~35% of them within
-// HOVER_RADIUS of the cursor, writes back. Cheap because the region is at
-// most ~30×30 pixels in buffer space.
+// Operates on an off-screen ImageData buffer (trail) seeded from the dither.
+// Each frame: (1) stochastically restore flipped pixels toward the clean dither
+// — this is the trail decay; (2) flip new pixels near the cursor, scaled by
+// movement speed — this is the disturbance. The caller composites the buffer
+// onto the canvas with putImageData.
 
-function applyHoverFlicker(hover, ctx, ditherImg, W, H, now) {
-  if (hover.x == null) return;
+function applyHoverFlicker(hover, _ctx, _ditherImg, W, H, now, trail, clean) {
+  const td = trail.data;
+  const tBucket = Math.floor(now / HOVER_BUCKET_MS);
+
+  // ── Decay: stochastically restore pixels that differ from the clean dither.
+  for (let i = 0; i < td.length; i += 4) {
+    if (td[i] === clean[i]) continue; // pixel is clean — skip
+    const px = (i / 4) % W;
+    const py = Math.floor((i / 4) / W);
+    if (rnd(px * 53 + py * 97 + tBucket * 7) < HOVER_TRAIL_DECAY) {
+      td[i]   = clean[i];
+      td[i+1] = clean[i+1];
+      td[i+2] = clean[i+2];
+    }
+  }
+
+  // ── Write: flip pixels near cursor, scaled by speed. Skip if not moving.
+  if (hover.x == null || hover.lastMove == null) return;
+  const speedFactor = Math.min(hover.speed / 8, 1);
+  if (speedFactor <= 0) return;
+
   const hr = HOVER_RADIUS;
   const hx = hover.x, hy = hover.y;
-  const tBucket = Math.floor(now / HOVER_BUCKET_MS);
 
   const x0 = Math.max(0, Math.floor(hx - hr));
   const x1 = Math.min(W, Math.ceil(hx + hr));
   const y0 = Math.max(0, Math.floor(hy - hr));
   const y1 = Math.min(H, Math.ceil(hy + hr));
-  if (x1 <= x0 || y1 <= y0) return;
 
-  const w = x1 - x0, h = y1 - y0;
-  const imgd = ctx.getImageData(x0, y0, w, h);
-  const data = imgd.data;
-  const inkBoundary = (INK[0] + PAPER[0]) / 2;
-
-  for (let dy = 0; dy < h; dy++) {
-    for (let dx = 0; dx < w; dx++) {
-      const x = x0 + dx, y = y0 + dy;
-      const d = Math.hypot(x - hx, y - hy);
+  for (let py = y0; py < y1; py++) {
+    for (let px = x0; px < x1; px++) {
+      const d = Math.hypot(px - hx, py - hy);
       if (d > hr) continue;
-      const intensity = (hr - d) / hr;
-      const r = rnd(x * 73 + y * 137 + tBucket * 19);
-      if (r < intensity * HOVER_FLIP_PROB) {
-        const i = (dy * w + dx) * 4;
-        const isInk = data[i] < inkBoundary;
-        if (isInk) {
-          data[i] = PAPER[0]; data[i+1] = PAPER[1]; data[i+2] = PAPER[2];
-        } else {
-          data[i] = INK[0];   data[i+1] = INK[1];   data[i+2] = INK[2];
-        }
+      const radial = (hr - d) / hr;
+      const r = rnd(px * 73 + py * 137 + tBucket * 19);
+      if (r < radial * speedFactor * HOVER_FLIP_PROB) {
+        const i = (py * W + px) * 4;
+        const isInk = clean[i] < (INK[0] + PAPER[0]) / 2;
+        td[i]   = isInk ? PAPER[0] : INK[0];
+        td[i+1] = isInk ? PAPER[1] : INK[1];
+        td[i+2] = isInk ? PAPER[2] : INK[2];
       }
     }
   }
-  ctx.putImageData(imgd, x0, y0);
 }

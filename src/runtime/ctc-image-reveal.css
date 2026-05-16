@@ -11,9 +11,12 @@
 .ctc-dither,
 .ctc-dither-canvas {
   display: block;
+  /* Fill the prose column. Small sources upscale to the column width;
+     image-rendering: pixelated keeps the dither cells crisp when it does. */
+  width: 100%;
   max-width: 100%;
   height: auto;
-  margin: 1.25em auto;
+  margin: 1.25em 0; /* left-align to the prose column, keep vertical rhythm */
   /* Crisp scaling under both up- and down-sample. Browsers diverge on the
      keyword; declare both for compatibility. */
   image-rendering: pixelated;

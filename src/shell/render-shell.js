@@ -4,11 +4,11 @@
 // only the pane labels, keys, and palette differ.
 //
 // Layout:
-//   ┌───────────────┬────────────────────────────┐
-//   │               │  [pane B]    (top right)   │
-//   │   [pane A]    ├────────────────────────────┤
-//   │   (left)      │  [pane C]    (bottom right)│
-//   └───────────────┴────────────────────────────┘
+//   ┌───────────────┬──────────────┬─────────────┐
+//   │               │              │             │
+//   │   [pane A]    │   [pane B]   │  [pane C]   │
+//   │   (left)      │   (middle)   │  (right)    │
+//   └───────────────┴──────────────┴─────────────┘
 //
 // Config shape:
 //   {
@@ -51,30 +51,28 @@ export function renderShell(root, config) {
 
       <div class="shell-gutter shell-gutter-v" role="separator" aria-orientation="vertical" aria-label="Resize ${escapeAttr(paneA.label)} pane" tabindex="0"></div>
 
-      <div class="shell-grid-right" id="shell-grid-right">
-        <section class="shell-pane" data-pane="${escapeAttr(paneB.key)}" id="pane-${escapeAttr(paneB.key)}">
-          <span class="shell-pane-label">
-            <span class="shell-pane-letter">${escapeHTML(paneB.key)}</span>${escapeHTML(paneB.label)}
-          </span>
-          <div class="shell-pane-body">
-            ${paneB.placeholder ? renderPlaceholder(paneB.placeholder) : ''}
-          </div>
-        </section>
+      <section class="shell-pane" data-pane="${escapeAttr(paneB.key)}" id="pane-${escapeAttr(paneB.key)}">
+        <span class="shell-pane-label">
+          <span class="shell-pane-letter">${escapeHTML(paneB.key)}</span>${escapeHTML(paneB.label)}
+        </span>
+        <div class="shell-pane-body">
+          ${paneB.placeholder ? renderPlaceholder(paneB.placeholder) : ''}
+        </div>
+      </section>
 
-        <div class="shell-gutter shell-gutter-h" role="separator" aria-orientation="horizontal" aria-label="Resize ${escapeAttr(paneB.label)} pane" tabindex="0"></div>
+      <div class="shell-gutter shell-gutter-v" role="separator" aria-orientation="vertical" aria-label="Resize ${escapeAttr(paneB.label)} pane" tabindex="0"></div>
 
-        <section class="shell-pane" data-pane="${escapeAttr(paneC.key)}" id="pane-${escapeAttr(paneC.key)}">
-          <span class="shell-pane-label">
-            <span class="shell-pane-letter">${escapeHTML(paneC.key)}</span>${escapeHTML(paneC.label)}
-          </span>
-          <button class="shell-pane-collapse" type="button"
-                  aria-label="Collapse ${escapeAttr(paneC.label)}" aria-expanded="true"
-                  data-collapse-target="${escapeAttr(paneC.key)}">&#8722;</button>
-          <div class="shell-pane-body">
-            ${paneC.placeholder ? renderPlaceholder(paneC.placeholder) : ''}
-          </div>
-        </section>
-      </div>
+      <section class="shell-pane" data-pane="${escapeAttr(paneC.key)}" id="pane-${escapeAttr(paneC.key)}">
+        <span class="shell-pane-label">
+          <span class="shell-pane-letter">${escapeHTML(paneC.key)}</span>${escapeHTML(paneC.label)}
+        </span>
+        <button class="shell-pane-collapse" type="button"
+                aria-label="Collapse ${escapeAttr(paneC.label)}" aria-expanded="true"
+                data-collapse-target="${escapeAttr(paneC.key)}">&#8722;</button>
+        <div class="shell-pane-body">
+          ${paneC.placeholder ? renderPlaceholder(paneC.placeholder) : ''}
+        </div>
+      </section>
     </div>
 
     <nav class="shell-mobile-tabs" aria-label="Pane switcher">
@@ -108,101 +106,101 @@ export function renderShell(root, config) {
 }
 
 // ── Pane resizing — drag (or arrow-key) the gutters between panes ────────────
-// The grid tracks are CSS custom properties (see shell.css): the outer grid's
-// `--pane-a-w` is the left pane's width; the right column's `--pane-b-h` is the
-// top-right pane's height. We write percentages so the layout stays fluid when
-// the window resizes. Session-only — sizes reset on reload, like the collapse.
+// The grid tracks are CSS custom properties (see shell.css): `--pane-a-w` is
+// the left pane's width; `--pane-b-w` is the middle pane's width. We write
+// percentages so the layout stays fluid when the window resizes. Session-only.
 function initResize() {
-  const MIN = 15, MAX = 85, STEP = 2; // percent
+  const MIN = 10, MAX = 80, STEP = 2; // percent
 
   const clamp = (n) => Math.min(MAX, Math.max(MIN, n));
 
-  // Per-gutter config: which container we measure against and which property
-  // we write. The horizontal gutter is inert while Marginalia is collapsed —
-  // the right column then uses a different track template (see shell.css).
-  function configFor(gutter) {
-    const vertical = gutter.classList.contains('shell-gutter-v');
-    if (vertical) {
-      return {
-        axis: 'v',
-        container: document.getElementById('shell-grid'),
-        prop: '--pane-a-w',
-        disabled: () => false,
-      };
-    }
-    const right = document.getElementById('shell-grid-right');
-    return {
-      axis: 'h',
-      container: right,
-      prop: '--pane-b-h',
-      disabled: () => right?.classList.contains('is-collapsed'),
-    };
-  }
+  // Per-gutter config: the first vertical gutter controls pane A's width
+  // (its position as % of total grid = pane A width). The second controls
+  // pane B's width — measured from pane B's element directly so pane A's
+  // width doesn't pollute the value.
+  const grid = document.getElementById('shell-grid');
+  const gutters = Array.from(document.querySelectorAll('.shell-gutter'));
 
-  function pctFromPointer(cfg, e) {
-    const rect = cfg.container.getBoundingClientRect();
-    const pct = cfg.axis === 'v'
-      ? ((e.clientX - rect.left) / rect.width)  * 100
-      : ((e.clientY - rect.top)  / rect.height) * 100;
-    return clamp(pct);
-  }
+  const configs = [
+    {
+      prop: '--pane-a-w',
+      disabled: () => false,
+      // Pointer: gutter left edge relative to grid = pane A width.
+      pctFromPointer: (e) => {
+        const rect = grid.getBoundingClientRect();
+        return clamp(((e.clientX - rect.left) / rect.width) * 100);
+      },
+      // Keyboard: pane A's rendered width as % of grid.
+      currentPct: () => {
+        const paneA = gutters[0].previousElementSibling;
+        const rect = grid.getBoundingClientRect();
+        return ((paneA?.getBoundingClientRect().width ?? 0) / rect.width) * 100;
+      },
+    },
+    {
+      prop: '--pane-b-w',
+      disabled: () => grid?.classList.contains('is-collapsed'),
+      // Pointer: distance from pane B's left edge to cursor = pane B width.
+      pctFromPointer: (e) => {
+        const paneB = gutters[1].previousElementSibling;
+        const pBRect = paneB?.getBoundingClientRect();
+        const gRect  = grid.getBoundingClientRect();
+        if (!pBRect) return MIN;
+        return clamp(((e.clientX - pBRect.left) / gRect.width) * 100);
+      },
+      // Keyboard: pane B's rendered width as % of grid.
+      currentPct: () => {
+        const paneB = gutters[1].previousElementSibling;
+        const rect = grid.getBoundingClientRect();
+        return ((paneB?.getBoundingClientRect().width ?? 0) / rect.width) * 100;
+      },
+    },
+  ];
 
-  document.querySelectorAll('.shell-gutter').forEach((gutter) => {
-    const cfg  = configFor(gutter);
-    const grid = document.getElementById('shell-grid');
-    if (!cfg.container || !grid) return;
+  gutters.forEach((gutter, index) => {
+    const cfg = configs[index];
+    if (!cfg || !grid) return;
 
     gutter.addEventListener('pointerdown', (e) => {
       if (cfg.disabled()) return;
       e.preventDefault();
       gutter.setPointerCapture(e.pointerId);
-      grid.classList.add('is-resizing', `is-resizing-${cfg.axis}`);
+      grid.classList.add('is-resizing', 'is-resizing-v');
     });
 
     gutter.addEventListener('pointermove', (e) => {
       if (!gutter.hasPointerCapture(e.pointerId)) return;
-      cfg.container.style.setProperty(cfg.prop, pctFromPointer(cfg, e) + '%');
+      grid.style.setProperty(cfg.prop, cfg.pctFromPointer(e) + '%');
     });
 
     function endDrag(e) {
       if (gutter.hasPointerCapture(e.pointerId)) {
         gutter.releasePointerCapture(e.pointerId);
       }
-      grid.classList.remove('is-resizing', `is-resizing-${cfg.axis}`);
+      grid.classList.remove('is-resizing', 'is-resizing-v');
     }
     gutter.addEventListener('pointerup', endDrag);
     gutter.addEventListener('pointercancel', endDrag);
 
-    // Keyboard: the gutter is a focusable ARIA separator. Arrow keys along the
-    // resize axis nudge the size; the perpendicular pair is ignored.
+    // Keyboard: Left/Right arrow keys nudge the size.
     gutter.addEventListener('keydown', (e) => {
       if (cfg.disabled()) return;
-      const dec = cfg.axis === 'v' ? 'ArrowLeft' : 'ArrowUp';
-      const inc = cfg.axis === 'v' ? 'ArrowRight' : 'ArrowDown';
       let delta = 0;
-      if (e.key === dec) delta = -STEP;
-      else if (e.key === inc) delta = STEP;
+      if (e.key === 'ArrowLeft') delta = -STEP;
+      else if (e.key === 'ArrowRight') delta = STEP;
       else return;
       e.preventDefault();
-      // Derive the current percentage from the actually-rendered geometry —
-      // the pane that the gutter sits against, measured within the container.
-      // This works whether or not the property has been set yet.
-      const cRect = cfg.container.getBoundingClientRect();
-      const gRect = gutter.getBoundingClientRect();
-      const current = cfg.axis === 'v'
-        ? ((gRect.left - cRect.left) / cRect.width)  * 100
-        : ((gRect.top  - cRect.top)  / cRect.height) * 100;
-      cfg.container.style.setProperty(cfg.prop, clamp(current + delta) + '%');
+      grid.style.setProperty(cfg.prop, clamp(cfg.currentPct() + delta) + '%');
     });
   });
 }
 
-// ── Marginalia collapse — [-] button shrinks pane C to a header strip ────────
-// Session-only (no persistence); Read pane (B) takes the freed space via the
-// `is-collapsed` class on the right-column grid (see shell.css).
+// ── Marginalia collapse — [-] button shrinks pane C to a right strip ─────────
+// Session-only (no persistence); the `is-collapsed` class on shell-grid switches
+// the third column track to a fixed strip width (see shell.css).
 function initMarginaliaCollapse() {
   const btn  = document.querySelector('.shell-pane-collapse');
-  const grid = document.getElementById('shell-grid-right');
+  const grid = document.getElementById('shell-grid');
   if (!btn || !grid) return;
   const key  = btn.dataset.collapseTarget;
   const pane = document.getElementById(`pane-${key}`);
@@ -210,12 +208,21 @@ function initMarginaliaCollapse() {
   // The visible label minus the leading single-letter pane key (e.g. "Marginalia").
   const name = pane.querySelector('.shell-pane-label')?.textContent.trim().slice(1) || 'pane';
 
-  btn.addEventListener('click', () => {
+  function toggle() {
     const collapsed = grid.classList.toggle('is-collapsed');
     pane.classList.toggle('is-collapsed', collapsed);
     btn.innerHTML = collapsed ? '&#43;' : '&#8722;';
     btn.setAttribute('aria-expanded', String(!collapsed));
     btn.setAttribute('aria-label', `${collapsed ? 'Expand' : 'Collapse'} ${name}`);
+  }
+
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggle();
+  });
+  // Clicking anywhere on the collapsed strip re-expands it.
+  pane.addEventListener('click', () => {
+    if (pane.classList.contains('is-collapsed')) toggle();
   });
 }
 
