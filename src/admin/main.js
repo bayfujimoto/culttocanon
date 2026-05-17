@@ -68,7 +68,7 @@ const ADMIN_HELP = {
     { heading: "Editing", rows: [
       ["(focus a field)", "enter INSERT"], ["Esc", "leave field → NORMAL"] ] },
     { heading: "Command (:)", rows: [
-      [":update", "save & commit"], [":q", "close post"], [":new", "new post"],
+      [":update", "save (pick bump) / commit"], [":q", "close post"], [":new", "new post"],
       [":e <id|slug>", "open by id/slug"],
       [":theme [name]", "switch theme (green/red/amber/ice/mono/slate)"] ] },
     { heading: "General", rows: [
@@ -91,8 +91,8 @@ import {
   renderNew,
 } from "./views/manuscript.js";
 
-import { initDispatch, commitWithPicker } from "./views/dispatch.js";
-import { save as saveForm }               from "./forms/post-form.js";
+import { initDispatch, triggerCommit }       from "./views/dispatch.js";
+import { save as saveForm, isDirty }          from "./forms/post-form.js";
 
 // ── Theme registry — friendly name → data-theme id. All dark; colors only. ──
 // Source of truth for the `:theme` command. The early restore at the top of
@@ -179,12 +179,17 @@ initModes({
     else if (action === "expand") expandIndexCursor();
   },
   onUpdate: () => {
-    // If a form is open, save it first to stage the change; then gate the
-    // commit through the bump-picker (which calls triggerCommit on confirm).
-    if (getState().view === "edit" || getState().view === "new") {
+    // Two-step by design. If a form is open with unsaved edits, `:update`
+    // means "stage this post" — saveForm() opens the per-post version picker
+    // and stages on confirm. It does NOT commit. A second `:update` (form
+    // clean, or from the dashboard) commits all pending changes; the version
+    // decision already rides on each pending change, so no batch picker.
+    const view = getState().view;
+    if ((view === "edit" || view === "new") && isDirty()) {
       saveForm();
+      return;
     }
-    commitWithPicker();
+    triggerCommit();
   },
   onQ: () => {
     navigate("#/");

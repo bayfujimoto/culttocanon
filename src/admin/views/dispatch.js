@@ -23,7 +23,6 @@ import {
   wordCount,
 } from "../../lib/history.js";
 import { bumpVersion, bumpCategoryBetween } from "../lib/version.js";
-import { openBumpPicker }                   from "../lib/bump-picker.js";
 import { getQueueAsFiles, clearQueue, queueSize } from "../lib/image-queue.js";
 
 const HISTORY_LIMIT = 5;
@@ -51,46 +50,25 @@ export function initDispatch(container, callbacks = {}) {
 }
 
 /**
- * Public picker-gated commit entry point — wired to `:update` in modes.js
- * and to the Dispatch commit button. If there are pending changes, opens
- * the bump-picker; on confirm, calls `triggerCommit(category)`.
+ * Commit all pending changes. The version decision was already made per-post
+ * at save time (see post-form.js → the statusbar picker), and rides on each
+ * pending change as `bump` (edits) or `startVersion` (adds). There is no
+ * batch picker here.
+ *
+ * For each `edit`: the staged content's `version` is bumped per the change's
+ * own `bump`, `revised` is auto-stamped, the content is re-serialized, and a
+ * history entry is appended for the *prior* body — labeled with the prior
+ * version and the category that produced it (Model A semantic; see history.js).
+ *
+ * For each `add`: the staged content is committed with the chosen
+ * `startVersion` (default "0.1.0"). No history entry is written — the version
+ * timeline begins on the first edit, at which point that snapshot is captured
+ * with category `"initial"`.
  */
-export function commitWithPicker() {
-  const { pendingChanges, allPosts } = getState();
-  // Both text changes and queued images count as "things to commit". An
-  // author could in theory queue an image without yet editing the body —
-  // the bump-picker still wants to run because the image ride along with
-  // the existing post's edit. v1 assumes at least one pending text change
-  // accompanies any image queue, so guard on text changes here.
-  if (!pendingChanges.length) {
-    flash(queueSize() > 0 ? "queued images need a body edit to commit" : "nothing to commit");
-    return;
-  }
-  openBumpPicker(pendingChanges, allPosts, {
-    onConfirm: (category) => triggerCommit(category),
-    onCancel:  () => {},
-  });
-}
-
-/**
- * Lower-level: perform the commit with a known bump category.
- *
- * For each `edit`: the staged content's `version` is bumped per `category`,
- * `revised` is auto-stamped, the content is re-serialized, and a history
- * entry is appended for the *prior* body — labeled with the prior version
- * and the category that produced it (Model A semantic; see history.js).
- *
- * For each `add`: the staged content is committed as-is. The blank-template
- * default `version: "0.1.0"` rides through. No history entry is written —
- * the version timeline begins on the first edit, at which point the v0.1.0
- * snapshot is captured with category `"initial"`.
- *
- * @param {"patch"|"minor"|"major"} category  applies to edits only
- */
-export async function triggerCommit(category) {
+export async function triggerCommit() {
   const { pendingChanges } = getState();
   if (!pendingChanges.length) {
-    flash("nothing to commit");
+    flash(queueSize() > 0 ? "queued images need a body edit to commit" : "nothing to commit");
     return;
   }
 
@@ -106,9 +84,10 @@ export async function triggerCommit(category) {
 
   for (const change of snapshot) {
     if (change.action === "add") {
-      // Adds emit at the version the blank template stamped (default 0.1.0).
+      // Adds emit at the start version the author chose at save time
+      // (0.1.0 or 1.0.0); fall back to whatever the content carries.
       const { data } = parseFrontMatter(change.content);
-      const version  = data?.version || "0.1.0";
+      const version  = change.startVersion || data?.version || "0.1.0";
       headers.push(`${change.id} v${version} [initial]`);
       continue;
     }
@@ -118,10 +97,18 @@ export async function triggerCommit(category) {
     const { data, body } = parseFrontMatter(change.content);
     if (!data || Object.keys(data).length === 0) continue; // unparseable — leave as-is
 
+    // Bump category was chosen per-post at save time. Guard against a change
+    // staged without one (older code path / dev artifact): default to patch.
+    let bump = change.bump;
+    if (bump !== "patch" && bump !== "minor" && bump !== "major") {
+      flash(`${change.id}: no bump chosen — defaulting to patch`);
+      bump = "patch";
+    }
+
     // Prior state = the post as loaded in memory at app boot.
     const prior        = (getState().allPosts || []).find(p => p.id === change.id);
     const priorVersion = prior?.version || data.version || "0.1.0";
-    const newVersion   = bumpVersion(priorVersion, category);
+    const newVersion   = bumpVersion(priorVersion, bump);
 
     // Append a history entry for the prior body.
     if (prior && typeof prior.body === "string") {
@@ -159,7 +146,7 @@ export async function triggerCommit(category) {
     const f = files.find(x => x.filePath === change.filePath);
     if (f) f.content = restamped;
 
-    headers.push(`${change.id} v${newVersion} [${category}]`);
+    headers.push(`${change.id} v${newVersion} [${bump}]`);
   }
 
   const imageCount = imageFiles.length;
@@ -272,7 +259,7 @@ function renderCommitButton(n) {
 
 function wireCommitButton() {
   const btn = document.getElementById("dispatch-commit");
-  if (btn) btn.addEventListener("click", commitWithPicker);
+  if (btn) btn.addEventListener("click", () => triggerCommit());
 }
 
 function renderPending(pending) {
@@ -289,10 +276,20 @@ function renderPending(pending) {
     const action = change.action || "edit";
     const prefix = action === "add" ? "A" : action === "delete" ? "D" : "M";
 
+    // Version decision chosen at save time. Adds show "new vX.Y.Z";
+    // edits show "bump → vX.Y.Z". Absent only for legacy/unstaged rows.
+    let bumpText = "";
+    if (action === "add" && change.startVersion) {
+      bumpText = `new v${change.startVersion}`;
+    } else if (action === "edit" && change.bump && change.newVersion) {
+      bumpText = `${change.bump} → v${change.newVersion}`;
+    }
+
     li.innerHTML = `
       <span class="dispatch-action dispatch-action--${escapeAttr(action)}">${prefix}</span>
       <span class="dispatch-id">${escapeHTML(change.id || "")}</span>
       <span class="dispatch-path" title="${escapeAttr(change.filePath || "")}">${escapeHTML(change.filePath || "")}</span>
+      ${bumpText ? `<span class="dispatch-bump">${escapeHTML(bumpText)}</span>` : ""}
     `;
 
     li.addEventListener("click", () => {

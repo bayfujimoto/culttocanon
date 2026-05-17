@@ -590,7 +590,7 @@ textarea.form-input.is-dropping {
 
 .dispatch-row {
   display: grid;
-  grid-template-columns: 18px auto 1fr;
+  grid-template-columns: 18px auto 1fr auto;
   gap: 8px;
   padding: 3px 4px;
   align-items: baseline;
@@ -627,6 +627,14 @@ textarea.form-input.is-dropping {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.dispatch-bump {
+  color: var(--accent-green);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  justify-self: end;
 }
 
 .dispatch-history-title {

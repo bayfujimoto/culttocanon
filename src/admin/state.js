@@ -12,10 +12,15 @@
 //   }
 //
 //   PendingChange = {
-//     id:        'ESS-2026-001',
-//     action:    'add' | 'edit',
-//     filePath:  'src/content/posts/ESS-2026-001-…md',
-//     content:   '---\n…',
+//     id:           'ESS-2026-001',
+//     action:       'add' | 'edit',
+//     filePath:     'src/content/posts/ESS-2026-001-…md',
+//     content:      '---\n…',
+//     // Version decision, chosen per-post at save time (post-form.js → the
+//     // statusbar picker) and consumed at commit (dispatch.js):
+//     bump:         'patch' | 'minor' | 'major' | null,  // edits only
+//     startVersion: '0.1.0' | '1.0.0' | null,            // adds only
+//     newVersion:   '0.2.0',  // computed result, for the Dispatch row label
 //   }
 
 const state = {

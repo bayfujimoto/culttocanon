@@ -1,91 +1,101 @@
-// ── Bump picker ──────────────────────────────────────────────────────────────
-// Statusbar overlay that gates committing on a version-bump choice. Replaces
-// the state row with a three-option chooser (patch / minor / major); on
-// confirm, fires `onConfirm(category)`. Style mirrors the command-mode
-// statusbar input.
+// ── Statusbar version picker ─────────────────────────────────────────────────
+// Statusbar overlay that gates *saving a single post* on a version choice.
+// Replaces the state row with a small numeric chooser; on confirm, fires
+// `onConfirm(value)`. Style mirrors the command-mode statusbar input.
+//
+// Two entry points share one scaffold:
+//
+//   openBumpPicker(post, cbs)          edit — patch / minor / major, each
+//                                      shown as current → target version.
+//   openStartVersionPicker(post, cbs)  new  — start at v0.1.0 or v1.0.0.
 //
 // Keyboard contract:
-//   1 / 2 / 3   highlight the corresponding category
-//   Enter       confirm the highlighted category
+//   1 / 2 / 3   highlight the corresponding option
+//   Enter       confirm the highlighted option
 //   Esc         cancel
 //
-// Outside clicks do NOT cancel — accidental clicks shouldn't drop a pending
-// commit. The picker takes over `mode` ("picker") so the normal-mode key
-// handlers in modes.js stand down while it is open.
+// Outside clicks do NOT cancel — accidental clicks shouldn't drop a save.
+// The picker takes over `mode` ("picker") so the normal-mode key handlers in
+// modes.js stand down while it is open.
 
 import { bumpVersion } from "./version.js";
 import { setMode }     from "./modes.js";
-
-const CATEGORIES = [
-  { key: "1", category: "patch", delta: "+0.0.1" },
-  { key: "2", category: "minor", delta: "+0.1.0" },
-  { key: "3", category: "major", delta: "+1.0.0" },
-];
 
 // Module-level state — at most one picker open at a time.
 let _state = null;
 
 /**
- * Open the bump picker.
+ * Open the bump picker for a single edited post.
  *
- * @param {Array}  pendingChanges   the staged changes from admin state
- * @param {Array}  allPosts         in-memory posts (current versions are read
- *                                   from here for the per-file projection)
- * @param {Object} callbacks        { onConfirm(category), onCancel() }
+ * @param {Object} post      the post being saved; `post.version` is its
+ *                           current version (target projections derive from it)
+ * @param {Object} callbacks { onConfirm(category), onCancel() } — `category`
+ *                           is one of "patch" | "minor" | "major"
  */
-export function openBumpPicker(pendingChanges, allPosts, { onConfirm, onCancel } = {}) {
+export function openBumpPicker(post, { onConfirm, onCancel } = {}) {
+  const cur = post?.version || "0.1.0";
+  const options = [
+    { key: "1", value: "patch", label: `patch → v${bumpVersion(cur, "patch")}` },
+    { key: "2", value: "minor", label: `minor → v${bumpVersion(cur, "minor")}` },
+    { key: "3", value: "major", label: `major → v${bumpVersion(cur, "major")}` },
+  ];
+  open({
+    prompt:      "update",
+    options,
+    contextText: `${post?.id || "post"} (v${cur})`,
+    onConfirm,
+    onCancel,
+  });
+}
+
+/**
+ * Open the start-version picker for a new post.
+ *
+ * @param {Object} post      the new post being saved (used for id context)
+ * @param {Object} callbacks { onConfirm(version), onCancel() } — `version`
+ *                           is one of "0.1.0" | "1.0.0"
+ */
+export function openStartVersionPicker(post, { onConfirm, onCancel } = {}) {
+  const options = [
+    { key: "1", value: "0.1.0", label: "start → v0.1.0" },
+    { key: "2", value: "1.0.0", label: "start → v1.0.0" },
+  ];
+  open({
+    prompt:      "save",
+    options,
+    contextText: `${post?.id || "new post"} (new)`,
+    onConfirm,
+    onCancel,
+  });
+}
+
+// ── Shared scaffold ──────────────────────────────────────────────────────────
+/**
+ * @param {Object} cfg
+ * @param {string} cfg.prompt       statusbar prompt word ("update" / "save")
+ * @param {Array}  cfg.options      [{ key, value, label }]
+ * @param {string} cfg.contextText  right-side context line
+ * @param {Function} cfg.onConfirm  called with the chosen option's `value`
+ * @param {Function} cfg.onCancel
+ */
+function open({ prompt, options, contextText, onConfirm, onCancel }) {
   if (_state) return; // already open
 
   const stateRow = document.querySelector(".shell-statusbar-state");
   if (!stateRow) return;
 
-  // ── Projection ──
-  // If exactly one edit is pending, show its current → target version for
-  // each category. Otherwise show just the delta (the per-file target is
-  // ambiguous when multiple files are batched).
-  const edits     = pendingChanges.filter(c => c.action === "edit");
-  const addsCount = pendingChanges.filter(c => c.action === "add").length;
-
-  let projection = null;
-  if (edits.length === 1) {
-    const post = (allPosts || []).find(p => p.id === edits[0].id);
-    const cur  = post?.version || "0.1.0";
-    projection = {
-      id: edits[0].id,
-      current: cur,
-      patch:   bumpVersion(cur, "patch"),
-      minor:   bumpVersion(cur, "minor"),
-      major:   bumpVersion(cur, "major"),
-    };
-  }
-
-  const optionHTML = CATEGORIES.map((c, i) => {
-    const target = projection ? `v${projection[c.category]}` : c.delta;
-    return `
+  const optionHTML = options.map((o, i) => `
       <span class="shell-picker-option" data-idx="${i}">
-        <kbd>${c.key}</kbd>&nbsp;${c.category} → ${target}
+        <kbd>${o.key}</kbd>&nbsp;${escapeHTML(o.label)}
       </span>
-    `;
-  }).join("");
-
-  // Context: which posts the bump applies to.
-  let contextText;
-  if (edits.length === 1 && addsCount === 0) {
-    contextText = `${projection.id} (v${projection.current})`;
-  } else if (addsCount > 0 && edits.length === 0) {
-    contextText = `${addsCount} new (adds emit at v0.1.0)`;
-  } else if (edits.length > 0 && addsCount > 0) {
-    contextText = `${edits.length} edit${edits.length === 1 ? "" : "s"}, ${addsCount} new`;
-  } else {
-    contextText = `${edits.length} edit${edits.length === 1 ? "" : "s"}`;
-  }
+    `).join("");
 
   // Preserve the original state row so close() can restore it.
   const originalHTML = stateRow.innerHTML;
 
   stateRow.innerHTML = `
     <span class="shell-status-state shell-status-state--command shell-status-state--picker">
-      <span class="shell-cmd-prompt">update</span>
+      <span class="shell-cmd-prompt">${escapeHTML(prompt)}</span>
       <span class="shell-picker-options">${optionHTML}</span>
       <span class="shell-picker-context">${escapeHTML(contextText)} · <kbd>↵</kbd> confirm · <kbd>Esc</kbd> cancel</span>
     </span>
@@ -102,6 +112,7 @@ export function openBumpPicker(pendingChanges, allPosts, { onConfirm, onCancel }
   document.addEventListener("keydown", keydownHandler, true);
 
   _state = {
+    options,
     onConfirm,
     onCancel,
     selectedIdx: -1,
@@ -114,7 +125,7 @@ function onKey(e) {
   if (!_state) return;
 
   // 1 / 2 / 3 — highlight.
-  const ki = CATEGORIES.findIndex(c => c.key === e.key);
+  const ki = _state.options.findIndex(o => o.key === e.key);
   if (ki >= 0) {
     e.preventDefault();
     e.stopPropagation();
@@ -127,13 +138,13 @@ function onKey(e) {
     e.preventDefault();
     e.stopPropagation();
     if (_state.selectedIdx < 0) {
-      flash("pick 1, 2, or 3 first");
+      flash(`pick ${_state.options.map(o => o.key).join(", ")} first`);
       return;
     }
-    const cat = CATEGORIES[_state.selectedIdx].category;
-    const cb  = _state.onConfirm;
+    const value = _state.options[_state.selectedIdx].value;
+    const cb    = _state.onConfirm;
     close();
-    cb?.(cat);
+    cb?.(value);
     return;
   }
 

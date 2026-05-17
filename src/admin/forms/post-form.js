@@ -23,6 +23,8 @@ import { stageChange } from "../state.js";
 import { createListbox } from "./listbox.js";
 import { parseId, formatId } from "../../lib/id.js";
 import { addImageToQueue } from "../lib/image-queue.js";
+import { bumpVersion } from "../lib/version.js";
+import { openBumpPicker, openStartVersionPicker } from "../lib/bump-picker.js";
 
 let _container = null;
 let _post      = null;
@@ -95,16 +97,22 @@ export function renderForm(container, post, { isNew = false } = {}) {
 }
 
 /**
- * Read the form, serialize it, stage it as a pending change. Called by
- * `:update` (via the main handler) and by the Save button. Returns the
- * staged change.
+ * Read the form, validate it, then open the statusbar version picker. The
+ * pending change is staged on the picker's confirm — carrying the chosen
+ * `bump` (edits) or `startVersion` (adds) plus a display `newVersion`. The
+ * actual version/revised rewrite still happens at dispatch time so the
+ * prior-body history snapshot is captured correctly (see dispatch.js).
+ *
+ * Called by `:update` (via the main handler) and by the Save button.
+ * Interactive: returns nothing — the stage happens asynchronously via the
+ * picker callback. On cancel, nothing is staged and the form stays dirty.
  *
  * No-op if no form is currently rendered (e.g., `:update` is pressed while
  * the dashboard is showing — we just want it to commit, not error).
  */
 export function save() {
-  if (!_container) return null;
-  if (!_container.querySelector("#field-id")) return null;
+  if (!_container) return;
+  if (!_container.querySelector("#field-id")) return;
 
   const data = readForm();
 
@@ -113,7 +121,7 @@ export function save() {
   for (const k of ["id", "slug", "title", "created", "status", "kind", "register", "visibility"]) {
     if (!data[k]) {
       flash(`missing ${k}`);
-      return null;
+      return;
     }
   }
 
@@ -126,17 +134,40 @@ export function save() {
     if (parsed) data.id = formatId(data.kind, parsed.year, parsed.n);
   }
 
-  const change = {
-    id:       data.id,
-    action:   _isNew ? "add" : "edit",
-    filePath: filePathFor(data),
-    content:  serializePost(data),
+  const stage = (extra) => {
+    const change = {
+      id:       data.id,
+      action:   _isNew ? "add" : "edit",
+      filePath: filePathFor(data),
+      content:  serializePost(data),
+      ...extra,
+    };
+    stageChange(change);
+    _dirty = false;
+    flash(`staged ${change.id} → v${change.newVersion}`);
   };
 
-  stageChange(change);
-  _dirty = false;
-  flash(`staged ${change.id}`);
-  return change;
+  if (_isNew) {
+    openStartVersionPicker(data, {
+      onConfirm: (startVersion) => {
+        data.version = startVersion;
+        stage({ bump: null, startVersion, newVersion: startVersion });
+      },
+      onCancel: () => flash("save cancelled"),
+    });
+    return;
+  }
+
+  // Editing — bump relative to the post's current version (held on _post,
+  // not the form, since version has no input).
+  const current = _post?.version || "0.1.0";
+  openBumpPicker({ id: data.id, version: current }, {
+    onConfirm: (category) => {
+      const newVersion = bumpVersion(current, category);
+      stage({ bump: category, startVersion: null, newVersion });
+    },
+    onCancel: () => flash("save cancelled"),
+  });
 }
 
 export function isDirty() { return _dirty; }
