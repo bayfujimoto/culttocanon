@@ -106,24 +106,28 @@ export function renderShell(root, config) {
 }
 
 // ── Pane resizing — drag (or arrow-key) the gutters between panes ────────────
-// The grid tracks are CSS custom properties (see shell.css): `--pane-a-w` is
-// the left pane's width; `--pane-b-w` is the middle pane's width. We write
-// percentages so the layout stays fluid when the window resizes. Session-only.
+// The grid (see shell.css) is: A=`--pane-a-w`, B=flexible `1fr`, C=`--pane-c-w`.
+// Because B is the only flexible track, each gutter writes exactly one explicit
+// CSS variable and B silently absorbs the slack — no conservation math, so the
+// two handles never interfere:
+//   • Left gutter  → `--pane-a-w`  (its X from the grid's left edge = A width).
+//                     B shrinks/grows to match; pane C is untouched.
+//   • Right gutter → `--pane-c-w`  (its X from the grid's right edge = C width).
+//                     B shrinks/grows to match; pane A is untouched.
+// We write percentages so the layout stays fluid when the window resizes.
+// Session-only.
 function initResize() {
   const MIN = 10, MAX = 80, STEP = 2; // percent
 
   const clamp = (n) => Math.min(MAX, Math.max(MIN, n));
 
-  // Per-gutter config: the first vertical gutter controls pane A's width
-  // (its position as % of total grid = pane A width). The second controls
-  // pane B's width — measured from pane B's element directly so pane A's
-  // width doesn't pollute the value.
   const grid = document.getElementById('shell-grid');
   const gutters = Array.from(document.querySelectorAll('.shell-gutter'));
 
   const configs = [
     {
       prop: '--pane-a-w',
+      // Left handle stays usable whether or not pane C is collapsed.
       disabled: () => false,
       // Pointer: gutter left edge relative to grid = pane A width.
       pctFromPointer: (e) => {
@@ -138,21 +142,18 @@ function initResize() {
       },
     },
     {
-      prop: '--pane-b-w',
+      prop: '--pane-c-w',
       disabled: () => grid?.classList.contains('is-collapsed'),
-      // Pointer: distance from pane B's left edge to cursor = pane B width.
+      // Pointer: distance from cursor to the grid's RIGHT edge = pane C width.
       pctFromPointer: (e) => {
-        const paneB = gutters[1].previousElementSibling;
-        const pBRect = paneB?.getBoundingClientRect();
-        const gRect  = grid.getBoundingClientRect();
-        if (!pBRect) return MIN;
-        return clamp(((e.clientX - pBRect.left) / gRect.width) * 100);
+        const gRect = grid.getBoundingClientRect();
+        return clamp(((gRect.right - e.clientX) / gRect.width) * 100);
       },
-      // Keyboard: pane B's rendered width as % of grid.
+      // Keyboard: pane C's rendered width as % of grid.
       currentPct: () => {
-        const paneB = gutters[1].previousElementSibling;
+        const paneC = gutters[1].nextElementSibling;
         const rect = grid.getBoundingClientRect();
-        return ((paneB?.getBoundingClientRect().width ?? 0) / rect.width) * 100;
+        return ((paneC?.getBoundingClientRect().width ?? 0) / rect.width) * 100;
       },
     },
   ];

@@ -130,7 +130,11 @@ body {
   min-height: 0;
   min-width: 0;
   display: grid;
-  grid-template-columns: var(--pane-a-w, 35%) var(--gutter-size) var(--pane-b-w, 40%) var(--gutter-size) 1fr;
+  /* A and C are explicit tracks; B is the flexible middle (`1fr`) that
+     silently absorbs whatever either gutter frees up. This keeps each
+     gutter writing exactly one track, so the left handle never disturbs
+     pane C and the right handle never disturbs pane A. */
+  grid-template-columns: var(--pane-a-w, 30%) var(--gutter-size) minmax(0, 1fr) var(--gutter-size) var(--pane-c-w, 25%);
   grid-template-rows: 1fr;
   padding: 18px 14px 10px;
   gap: 0;
@@ -138,7 +142,7 @@ body {
 
 /* Marginalia collapsed: pane C shrinks to a vertical strip on the right edge. */
 .shell-grid.is-collapsed {
-  grid-template-columns: var(--pane-a-w, 35%) var(--gutter-size) 1fr var(--gutter-size) var(--pane-c-collapsed-w, 2em);
+  grid-template-columns: var(--pane-a-w, 30%) var(--gutter-size) 1fr var(--gutter-size) var(--pane-c-collapsed-w, 2em);
 }
 
 .shell-pane.is-collapsed .shell-pane-body {

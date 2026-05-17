@@ -219,6 +219,7 @@ function executeCommand(raw) {
     case "q":      handlers.onQ?.(); break;
     case "new":    handlers.onNew?.(); break;
     case "e":      if (arg) handlers.onE?.(arg); break;
+    case "theme":  handlers.onTheme?.(arg); break;
     case "help":   flashStatus("help is not yet implemented"); break;
     default:       flashStatus(`not a command: ${name}`);
   }

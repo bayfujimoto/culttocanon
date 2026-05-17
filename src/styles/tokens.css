@@ -66,7 +66,7 @@
    ───────────────────────────────────────────────────────────────────────── */
 [data-theme="admin"] {
   /* Surface ramp */
-  --bg:           #000000;
+  --bg:           #071407;   /* dark with a visible phosphor-green wash */
   --bg-bar:       var(--bg);
   --bg-elevated:  #0a1a0a;   /* very slightly green-tinted dark for hover */
   --bg-selected:  #1a3a1a;   /* darker green for selected rows */
@@ -101,6 +101,188 @@
 
   /* The topbar identity and pane-letter markers glow phosphor-bright. */
   --identity-accent: var(--fg);
+
+  /* Phosphor glow base — consumed by styles.css as rgb(var(--glow) / a). */
+  --glow: 51 255 51;   /* matches the legacy rgba(51,255,51,…) glows */
+}
+
+/* ── ADMIN dark variants — colors only, structure identical to the green
+   block above. Switched via the `:theme` command (src/admin/main.js); the
+   default for a fresh session is red. Each keeps the green block's ethos:
+   bright --fg for focus/active, dimmer --fg-muted for body, constrained
+   accents with the amber/red two-break convention, a cool accent for links,
+   and a --glow triplet matching --fg so the CRT bloom tracks the phosphor.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* Red — deep-black red-phosphor CRT. */
+[data-theme="admin-red"] {
+  --bg:           #170808;   /* dark with a visible red wash */
+  --bg-bar:       var(--bg);
+  --bg-elevated:  #1a0707;
+  --bg-selected:  #3a1414;
+  --bg-backdrop:  #070303;
+
+  --fg:        #ff3b3b;
+  --fg-muted:  #c21f1f;
+  --fg-dim:    #7a1212;
+
+  --border:        #c21f1f;
+  --border-strong: #ff3b3b;
+  --border-faint:  #5a0e0e;
+
+  --accent-amber:  #ff9e3d;
+  --accent-red:    #ff6b4a;
+  --accent-cyan:   #34b3b3;
+  --accent-green:  #5fcf6f;
+
+  --accent-yellow:  var(--accent-amber);
+  --accent-orange:  var(--accent-amber);
+  --accent-magenta: var(--accent-red);
+  --accent-violet:  var(--accent-cyan);
+  --accent-blue:    var(--accent-cyan);
+
+  --color-success: var(--accent-green);
+  --color-error:   var(--accent-red);
+
+  --identity-accent: var(--fg);
+  --glow: 255 59 59;
+}
+
+/* Amber — DEC VT amber monochrome. */
+[data-theme="admin-amber"] {
+  --bg:           #171005;   /* dark with a visible amber wash */
+  --bg-bar:       var(--bg);
+  --bg-elevated:  #1a1203;
+  --bg-selected:  #3a2a08;
+  --bg-backdrop:  #050402;
+
+  --fg:        #ffb000;
+  --fg-muted:  #c98604;
+  --fg-dim:    #7a5202;
+
+  --border:        #c98604;
+  --border-strong: #ffb000;
+  --border-faint:  #5a3c06;
+
+  --accent-amber:  #ffd166;
+  --accent-red:    #ff5a3c;
+  --accent-cyan:   #3db8b8;
+  --accent-green:  #9fd14a;
+
+  --accent-yellow:  var(--accent-amber);
+  --accent-orange:  var(--accent-amber);
+  --accent-magenta: var(--accent-red);
+  --accent-violet:  var(--accent-cyan);
+  --accent-blue:    var(--accent-cyan);
+
+  --color-success: var(--accent-green);
+  --color-error:   var(--accent-red);
+
+  --identity-accent: var(--fg);
+  --glow: 255 176 0;
+}
+
+/* Ice — cold cyan/blue terminal. */
+[data-theme="admin-ice"] {
+  --bg:           #081019;   /* dark with a visible cyan wash */
+  --bg-bar:       var(--bg);
+  --bg-elevated:  #07141a;
+  --bg-selected:  #103040;
+  --bg-backdrop:  #020407;
+
+  --fg:        #5fd7ff;
+  --fg-muted:  #2a9fc9;
+  --fg-dim:    #15607a;
+
+  --border:        #2a9fc9;
+  --border-strong: #5fd7ff;
+  --border-faint:  #0e425a;
+
+  --accent-amber:  #ffc14d;
+  --accent-red:    #ff6b6b;
+  --accent-cyan:   #7fe6ff;
+  --accent-green:  #5fe0a8;
+
+  --accent-yellow:  var(--accent-amber);
+  --accent-orange:  var(--accent-amber);
+  --accent-magenta: var(--accent-red);
+  --accent-violet:  var(--accent-cyan);
+  --accent-blue:    var(--accent-cyan);
+
+  --color-success: var(--accent-green);
+  --color-error:   var(--accent-red);
+
+  --identity-accent: var(--fg);
+  --glow: 95 215 255;
+}
+
+/* Mono — grayscale paper-white-on-black. Semantics carried by the faint
+   amber/red only; cyan/green deliberately stay gray. */
+[data-theme="admin-mono"] {
+  --bg:           #141414;   /* dark gray, clearly lifted off black (no hue) */
+  --bg-bar:       var(--bg);
+  --bg-elevated:  #1f1f1f;   /* lighter than --bg so elevation still reads */
+  --bg-selected:  #2e2e2e;
+  --bg-backdrop:  #060606;
+
+  --fg:        #f0f0f0;
+  --fg-muted:  #a8a8a8;
+  --fg-dim:    #5f5f5f;
+
+  --border:        #a8a8a8;
+  --border-strong: #f0f0f0;
+  --border-faint:  #3a3a3a;
+
+  --accent-amber:  #e0b050;
+  --accent-red:    #e06050;
+  --accent-cyan:   #c0c0c0;
+  --accent-green:  #b8b8b8;
+
+  --accent-yellow:  var(--accent-amber);
+  --accent-orange:  var(--accent-amber);
+  --accent-magenta: var(--accent-red);
+  --accent-violet:  var(--accent-cyan);
+  --accent-blue:    var(--accent-cyan);
+
+  --color-success: var(--accent-green);
+  --color-error:   var(--accent-red);
+
+  --identity-accent: var(--fg);
+  --glow: 240 240 240;
+}
+
+/* Slate — soft desaturated blue-gray; the gentlest non-mono option. */
+[data-theme="admin-slate"] {
+  --bg:           #10151e;   /* visible blue-gray wash */
+  --bg-bar:       var(--bg);
+  --bg-elevated:  #1b2330;   /* lighter than --bg so elevation still reads */
+  --bg-selected:  #2a3543;
+  --bg-backdrop:  #030507;
+
+  --fg:        #c4cdd6;
+  --fg-muted:  #8b95a1;
+  --fg-dim:    #565f6b;
+
+  --border:        #8b95a1;
+  --border-strong: #c4cdd6;
+  --border-faint:  #333b45;
+
+  --accent-amber:  #d9b271;
+  --accent-red:    #d97a6b;
+  --accent-cyan:   #7fa8c4;
+  --accent-green:  #8fb89a;
+
+  --accent-yellow:  var(--accent-amber);
+  --accent-orange:  var(--accent-amber);
+  --accent-magenta: var(--accent-red);
+  --accent-violet:  var(--accent-cyan);
+  --accent-blue:    var(--accent-cyan);
+
+  --color-success: var(--accent-green);
+  --color-error:   var(--accent-red);
+
+  --identity-accent: var(--fg);
+  --glow: 196 205 214;
 }
 
 /* ── Fonts ── */

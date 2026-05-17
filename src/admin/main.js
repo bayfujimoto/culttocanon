@@ -23,6 +23,21 @@ import "../styles/post-body.css";
 import "../styles/tree-view.css";
 import "./styles.css";
 
+// ── Restore saved theme before the shell renders (no flash) ──────────────────
+// admin.html ships data-theme="admin"; override from localStorage here, before
+// renderShell paints. Default for a fresh session is RED. Scoped to the admin
+// entry only — public (src/public/main.js) and gate (src/gate/main.js) never
+// import this file, so [data-theme="public"] and the gate's green are untouched.
+(function restoreAdminTheme() {
+  const KEY = "ctc:admin:theme";
+  const MAP = { green:"admin", red:"admin-red", amber:"admin-amber",
+                ice:"admin-ice", mono:"admin-mono", slate:"admin-slate" };
+  document.documentElement.dataset.surface = "admin";   // powers styles.css scoping
+  let name = "red";                                      // fresh-session default
+  try { const s = localStorage.getItem(KEY); if (s && MAP[s]) name = s; } catch {}
+  document.documentElement.dataset.theme = MAP[name];
+})();
+
 import { renderShell }    from "../shell/render-shell.js";
 import { getAllPosts }    from "../lib/post-loader.js";
 import { setState, getState } from "./state.js";
@@ -54,7 +69,8 @@ const ADMIN_HELP = {
       ["(focus a field)", "enter INSERT"], ["Esc", "leave field → NORMAL"] ] },
     { heading: "Command (:)", rows: [
       [":update", "save & commit"], [":q", "close post"], [":new", "new post"],
-      [":e <id|slug>", "open by id/slug"] ] },
+      [":e <id|slug>", "open by id/slug"],
+      [":theme [name]", "switch theme (green/red/amber/ice/mono/slate)"] ] },
     { heading: "General", rows: [
       ["Esc", "focus Index / clear error"], ["?", "toggle this help"] ] },
   ],
@@ -77,6 +93,22 @@ import {
 
 import { initDispatch, commitWithPicker } from "./views/dispatch.js";
 import { save as saveForm }               from "./forms/post-form.js";
+
+// ── Theme registry — friendly name → data-theme id. All dark; colors only. ──
+// Source of truth for the `:theme` command. The early restore at the top of
+// this file keeps a duplicate of the name→id map so it can run before imports
+// resolve; keep the two in sync if themes are added.
+const ADMIN_THEMES = {
+  green: "admin",       red:  "admin-red",   amber: "admin-amber",
+  ice:   "admin-ice",   mono: "admin-mono",  slate: "admin-slate",
+};
+const THEME_NAMES       = Object.keys(ADMIN_THEMES);
+const THEME_STORAGE_KEY = "ctc:admin:theme";
+
+function applyTheme(name) {
+  document.documentElement.dataset.theme = ADMIN_THEMES[name];
+  try { localStorage.setItem(THEME_STORAGE_KEY, name); } catch {}
+}
 
 // ── Shell ────────────────────────────────────────────────────────────────────
 renderShell(document.getElementById("app"), {
@@ -164,6 +196,17 @@ initModes({
     const post = byId.get(arg) || allPosts.find(p => p.slug === arg);
     if (post) navigate(`#/edit/${post.id}`);
     else      flashStatus(`no piece "${arg}"`);
+  },
+  onTheme: (arg) => {
+    const list = THEME_NAMES.join(", ");
+    if (!arg) { flashStatus(`themes: ${list}`); return; }
+    const want = arg.toLowerCase();
+    if (!(want in ADMIN_THEMES)) {
+      flashStatus(`no theme "${arg}" — try: ${list}`);
+      return;
+    }
+    applyTheme(want);
+    flashStatus(`theme → ${want}`);
   },
 });
 
