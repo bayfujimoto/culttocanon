@@ -2,8 +2,9 @@ node_modules
 dist
 .DS_Store
 .env
-.env.local
+.env.*
 .netlify
+.netlify-blobs-dev
 *.log
 
 # ── Image dither derivatives ───────────────────────────────────────────────

@@ -6,11 +6,15 @@
   "description": "Cult to Canon — a text-primary TUI archive in the lineage of cult-to-canon migration.",
   "scripts": {
     "dev": "vite",
+    "dev:netlify": "netlify dev",
     "build": "vite build",
     "preview": "vite preview",
     "dither": "node build/dither.js"
   },
   "dependencies": {
+    "@netlify/blobs": "^10.7.7",
+    "@simplewebauthn/browser": "^13.3.0",
+    "@simplewebauthn/server": "^13.3.0",
     "js-yaml": "^4.1.0",
     "marked": "^15.0.0",
     "sharp": "^0.34.5"

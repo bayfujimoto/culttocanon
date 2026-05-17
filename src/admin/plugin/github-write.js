@@ -6,6 +6,11 @@
 // Production uses the Netlify Function at netlify/functions/commit-all.js,
 // which calls the GitHub API instead of touching the local filesystem.
 //
+// Auth: the production function is gated by the passkey session cookie. This
+// dev middleware is intentionally left open — it only runs under local `vite
+// dev`, is never deployed, and writes to the local working tree. The passkey
+// gate lives entirely at the Netlify (Edge + Function) layer.
+//
 // Payload shape (matches the Netlify function):
 //   {
 //     files: [

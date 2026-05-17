@@ -24,10 +24,23 @@
 // through for binary entries and `encoding: "utf-8"` for text entries.
 //
 // Response: { ok: true, mode: "github", sha } | { ok: false, error }
+//
+// Access: gated by the same passkey session cookie as /admin. Without a valid
+// session this returns 401 before any GitHub work — the Edge gate protects the
+// admin document, this protects the only privileged action.
+
+import { readCookie, verifySession } from "../lib/session.js";
 
 export async function handler(event) {
   if (event.httpMethod !== "POST") {
     return resp(405, { ok: false, error: "Method not allowed" });
+  }
+
+  const session = await verifySession(
+    readCookie(event.headers?.cookie || event.headers?.Cookie)
+  );
+  if (!session) {
+    return resp(401, { ok: false, error: "unauthorized" });
   }
 
   const GITHUB_TOKEN  = process.env.GITHUB_TOKEN;

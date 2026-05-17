@@ -3,12 +3,15 @@ import { githubWritePlugin } from "./src/admin/plugin/github-write.js";
 import { thesisVersionPlugin } from "./vite-plugin-thesis-version.js";
 import { imageDitherPlugin } from "./build/vite-plugin-image-dither.js";
 
-// Two entry points share a single Vite build:
+// Three entry points share a single Vite build:
 //   /          → index.html       (public site, [data-theme="public"])
 //   /admin     → admin.html       (TUI admin,   [data-theme="admin"])
+//   /gate      → gate.html        (passkey gate, [data-theme="admin"])
 //
-// The Netlify redirects in netlify.toml route /admin/* to admin.html and the
-// rest to index.html; the SPA routers take over from there.
+// The Netlify redirects in netlify.toml route /admin/* to admin.html, /gate to
+// gate.html, and the rest to index.html; the SPA routers take over from there.
+// An Edge Function (netlify/edge-functions/admin-gate.js) hard-blocks /admin
+// behind a passkey session cookie, redirecting to /gate when absent.
 //
 // The github-write plugin adds a /api/commit-all middleware in development
 // that writes staged files directly to disk. In production the same path is
@@ -31,6 +34,7 @@ export default defineConfig({
       input: {
         main:  "index.html",
         admin: "admin.html",
+        gate:  "gate.html",
       },
     },
   },

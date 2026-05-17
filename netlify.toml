@@ -9,11 +9,53 @@
 [functions]
   directory = "netlify/functions"
 
-# Admin commit endpoint — routed to the Netlify Function. Must come BEFORE
-# the SPA catch-all so /api/* is not swallowed by index.html.
+# Hard gate: runs before the redirects below. A valid passkey session cookie
+# lets /admin through to its rewrite; anything else is redirected to /gate.
+[[edge_functions]]
+  function = "admin-gate"
+  path = "/admin"
+[[edge_functions]]
+  function = "admin-gate"
+  path = "/admin/*"
+[[edge_functions]]
+  function = "admin-gate"
+  path = "/admin.html"
+
+# Admin commit endpoint — routed to the Netlify Function (now cookie-gated in
+# the function itself). Must come BEFORE the SPA catch-all so /api/* is not
+# swallowed by index.html.
 [[redirects]]
   from = "/api/commit-all"
   to   = "/.netlify/functions/commit-all"
+  status = 200
+
+# Passkey endpoints — challenge/verify, one-time registration, logout.
+[[redirects]]
+  from = "/api/passkey/challenge"
+  to   = "/.netlify/functions/passkey-challenge"
+  status = 200
+[[redirects]]
+  from = "/api/passkey/verify"
+  to   = "/.netlify/functions/passkey-verify"
+  status = 200
+[[redirects]]
+  from = "/api/passkey/register/options"
+  to   = "/.netlify/functions/passkey-register-options"
+  status = 200
+[[redirects]]
+  from = "/api/passkey/register/verify"
+  to   = "/.netlify/functions/passkey-register-verify"
+  status = 200
+[[redirects]]
+  from = "/api/logout"
+  to   = "/.netlify/functions/logout"
+  status = 200
+
+# Gate route — serves gate.html. Must come BEFORE /admin/* (the gate is the
+# public landing the Edge Function redirects unauthenticated users to).
+[[redirects]]
+  from = "/gate"
+  to   = "/gate.html"
   status = 200
 
 # Admin route — serves admin.html; the in-browser router handles sub-routes.
