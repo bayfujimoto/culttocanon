@@ -116,12 +116,19 @@ export async function triggerCommit() {
       // Derive the category that produced `priorVersion`: "initial" if this
       // is the first revision (history empty), otherwise inferred from the
       // delta between the most recent entry's version and priorVersion.
-      const priorCategory = existing.versions.length === 0
-        ? "initial"
-        : bumpCategoryBetween(
-            existing.versions[existing.versions.length - 1].version,
-            priorVersion,
-          );
+      // bumpCategoryBetween throws when priorVersion is not strictly higher
+      // than the last recorded version (e.g. a sidecar whose newest entry
+      // equals the live version — an initial snapshot taken at the same
+      // version). That's only a label; never let it abort the commit.
+      let priorCategory = "initial";
+      if (existing.versions.length > 0) {
+        const lastVersion = existing.versions[existing.versions.length - 1].version;
+        try {
+          priorCategory = bumpCategoryBetween(lastVersion, priorVersion);
+        } catch {
+          priorCategory = "patch";
+        }
+      }
 
       const priorRevised = prior.revised || prior.created;
       const next = appendVersion(existing, {
@@ -259,7 +266,13 @@ function renderCommitButton(n) {
 
 function wireCommitButton() {
   const btn = document.getElementById("dispatch-commit");
-  if (btn) btn.addEventListener("click", () => triggerCommit());
+  // Surface any unexpected throw in the commit pipeline instead of letting
+  // the rejected promise vanish (which would make the button look dead).
+  if (btn) btn.addEventListener("click", () => {
+    triggerCommit().catch(e => {
+      setState({ status: "error", statusMessage: `commit failed: ${e.message}` });
+    });
+  });
 }
 
 function renderPending(pending) {
