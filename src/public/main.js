@@ -39,6 +39,7 @@ import {
 import { renderMarginalia } from "./views/marginalia.js";
 import { initRouter, navigate } from "./lib/router.js";
 import { initModes, getFocusedPane, flashStatus } from "./lib/modes.js";
+import { initBackground, setBackgroundTreatment } from "./lib/background.js";
 
 // ── Keymap legend (single keystrokes only) + `?` help reference ──────────────
 // Per-pane groups: j/k/Enter/t only fire when Browse is focused, so they appear
@@ -64,11 +65,17 @@ const PUBLIC_HELP = {
       ["Enter", "toggle group / open piece"], ["t", "toggle tree / flat"] ] },
     { heading: "Command (:)", rows: [
       [":e <id|slug>", "open a piece"], [":q", "close current piece"],
-      [":home", "return to /"] ] },
+      [":home", "return to /"],
+      [":bg <treatment>", "background: original / pixelated / duotone / off"] ] },
     { heading: "General", rows: [
       ["Esc", "focus Browse / clear error"], ["?", "toggle this help"] ] },
   ],
 };
+
+// ── Background ───────────────────────────────────────────────────────────────
+// Mount the daily-rotating background layer before the shell. The reader's
+// `:bg <treatment>` preference (persisted to localStorage) is restored here.
+initBackground();
 
 // ── Shell ────────────────────────────────────────────────────────────────────
 renderShell(document.getElementById("app"), {
@@ -237,5 +244,10 @@ initModes({
   },
   onCommandQ:    () => navigate("/"),
   onCommandHome: () => navigate("/"),
+  onCommandBg:   (arg) => {
+    if (!setBackgroundTreatment(arg)) {
+      flashStatus(`:bg ${arg}? try original / pixelated / duotone / off`);
+    }
+  },
   onReset:       () => closeDiff(),
 });

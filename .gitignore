@@ -6,6 +6,8 @@ dist
 .netlify
 .netlify-blobs-dev
 *.log
+bg-mockups/
+essays/
 
 # ── Image dither derivatives ───────────────────────────────────────────────
 # Each source image in src/content/posts/<slug>/images/ produces eight
@@ -20,3 +22,9 @@ src/content/posts/**/images/*.quant.png
 src/content/posts/**/images/*.quant@2x.png
 src/content/posts/**/images/*.optimized.jpg
 src/content/posts/**/images/*.optimized@2x.jpg
+
+# ── Background pixelate derivatives ────────────────────────────────────────
+# /public/backgrounds/NNN.pixelated.png is generated from NNN.jpg by
+# build/vite-plugin-background-pixelate.js at dev-server start and at
+# `vite build`. Only the source .jpg is committed.
+public/backgrounds/*.pixelated.png

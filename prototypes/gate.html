@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>CULT_TO_CANON — gate</title>
+<style>
+  :root {
+    --bg: #000000;
+    --fg: #33ff33;
+    --fg-dim: #1c7a1c;
+    --amber: #ffb000;
+    --red: #ff3030;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 13px;
+    overflow: hidden;
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    user-select: none;
+  }
+
+  .topbar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    padding: 12px 16px;
+    color: var(--fg-dim);
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .stage {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: none;
+  }
+
+  canvas {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    display: block;
+    width: min(80vmin, 480px);
+    height: min(80vmin, 480px);
+    touch-action: none;
+    cursor: crosshair;
+  }
+
+  .status, .hint {
+    position: fixed;
+    left: 0; right: 0;
+    text-align: center;
+    pointer-events: none;
+    transition: opacity 0.3s ease-out;
+    letter-spacing: 0.08em;
+  }
+
+  .hint {
+    bottom: 16px;
+    color: var(--fg-dim);
+    font-size: 11px;
+  }
+
+  .status {
+    bottom: 44px;
+    color: var(--fg);
+    font-size: 12px;
+    opacity: 0;
+  }
+
+  .hint.hidden { opacity: 0; }
+  .status.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="topbar">CULT_TO_CANON v0.1.0</div>
+
+<div class="stage" id="stage">
+  <canvas id="gate" role="img" aria-label="Press and hold anywhere to enter the manuscript"></canvas>
+</div>
+
+<div class="status" id="status"></div>
+<div class="hint" id="hint">press and hold</div>
+
+<script>
+  // ── Mirrors src/runtime/ctc-image-reveal.js where applicable ────────────
+  // Same Bayer 4x4 matrix the build pipeline uses (BAYER4 in build/dither.js).
+  // WIN=0.5 per-cell window matches the Read pane reveal. Phase is radial
+  // from the touch point instead of random: cells nearest the press start
+  // immediately, cells at the far corner start at (1 - WIN), all finish by
+  // progress = 1.
+
+  const W = 80, H = 80;
+  const CW = 4, CH = 4;
+  const COLS = Math.ceil(W / CW);
+  const ROWS = Math.ceil(H / CH);
+  const DUR = 1250;
+  const WIN = 0.5;
+  const REVERSE_DUR = 320;
+
+  const BAYER4 = [
+    [ 0,  8,  2, 10],
+    [12,  4, 14,  6],
+    [ 3, 11,  1,  9],
+    [15,  7, 13,  5],
+  ];
+
+  // Ink = admin phosphor; paper = true black. The public Read pane uses the
+  // public theme tokens (#1f2226 / #d5d8db) instead.
+  const INK = [0x33, 0xff, 0x33];
+  const PAPER = [0, 0, 0];
+
+  const canvas = document.getElementById("gate");
+  const stage  = document.getElementById("stage");
+  const hint   = document.getElementById("hint");
+  const status = document.getElementById("status");
+
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext("2d");
+  ctx.imageSmoothingEnabled = false;
+  const imageData = ctx.createImageData(W, H);
+
+  const state = {
+    pressing: false,
+    pressStart: 0,
+    revealed: false,
+    releaseStart: 0,
+    cellPhases: new Float32Array(COLS * ROWS),
+  };
+
+  fillBlack();
+
+  // ── Input ───────────────────────────────────────────────────────────────
+
+  stage.addEventListener("pointerdown", onPointerDown);
+  stage.addEventListener("pointerup", onPointerUp);
+  stage.addEventListener("pointercancel", onPointerUp);
+  stage.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  // Keyboard fallback: space or enter holds the gate from canvas center.
+  let kbHolding = false;
+  window.addEventListener("keydown", (e) => {
+    if (e.key !== " " && e.key !== "Enter") return;
+    if (kbHolding) return; // ignore auto-repeat
+    e.preventDefault();
+    kbHolding = true;
+    startPress(W / 2, H / 2);
+  });
+  window.addEventListener("keyup", (e) => {
+    if (e.key !== " " && e.key !== "Enter") return;
+    if (!kbHolding) return;
+    kbHolding = false;
+    endPress();
+  });
+
+  function onPointerDown(e) {
+    e.preventDefault();
+    if (state.revealed) { reset(); return; }
+    if (state.releaseStart) return;
+    try { stage.setPointerCapture(e.pointerId); } catch (_) {}
+    const { px, py } = pointerToBuffer(e);
+    startPress(px, py);
+  }
+
+  function onPointerUp() {
+    if (!state.pressing) return;
+    endPress();
+  }
+
+  function pointerToBuffer(e) {
+    const r = canvas.getBoundingClientRect();
+    return {
+      px: Math.max(0, Math.min(W - 1, Math.floor((e.clientX - r.left) * W / r.width))),
+      py: Math.max(0, Math.min(H - 1, Math.floor((e.clientY - r.top)  * H / r.height))),
+    };
+  }
+
+  function startPress(px, py) {
+    computeRadialPhases(px, py);
+    state.pressing = true;
+    state.pressStart = performance.now();
+    hint.classList.add("hidden");
+    requestAnimationFrame(frame);
+  }
+
+  function endPress() {
+    state.pressing = false;
+    if (state.revealed) return;
+    state.releaseStart = performance.now();
+    requestAnimationFrame(frame);
+  }
+
+  // ── Per-cell phase: distance from touch point, normalized to (1-WIN). ──
+
+  function computeRadialPhases(px, py) {
+    const corners = [
+      Math.hypot(0     - px, 0     - py),
+      Math.hypot(W - 1 - px, 0     - py),
+      Math.hypot(0     - px, H - 1 - py),
+      Math.hypot(W - 1 - px, H - 1 - py),
+    ];
+    const maxDist = Math.max.apply(null, corners) || 1;
+    for (let row = 0; row < ROWS; row++) {
+      for (let col = 0; col < COLS; col++) {
+        const cellCx = col * CW + CW / 2;
+        const cellCy = row * CH + CH / 2;
+        const dist = Math.hypot(cellCx - px, cellCy - py);
+        state.cellPhases[row * COLS + col] = (dist / maxDist) * (1 - WIN);
+      }
+    }
+  }
+
+  // ── Animation loop ──────────────────────────────────────────────────────
+
+  function frame(now) {
+    if (state.pressing) {
+      const progress = (now - state.pressStart) / DUR;
+      if (progress >= 1) {
+        renderFullDither();
+        state.revealed = true;
+        state.pressing = false;
+        onSuccess();
+        return;
+      }
+      renderPress(progress);
+      requestAnimationFrame(frame);
+      return;
+    }
+    if (state.releaseStart) {
+      const elapsed = now - state.releaseStart;
+      if (elapsed >= REVERSE_DUR) {
+        state.releaseStart = 0;
+        fillBlack();
+        hint.classList.remove("hidden");
+        return;
+      }
+      const fade = 1 - elapsed / REVERSE_DUR;
+      renderUniform(fade);
+      requestAnimationFrame(frame);
+    }
+  }
+
+  // ── Rendering ───────────────────────────────────────────────────────────
+
+  function pixel(px, py, lit) {
+    const i = (py * W + px) * 4;
+    const c = lit ? INK : PAPER;
+    imageData.data[i]     = c[0];
+    imageData.data[i + 1] = c[1];
+    imageData.data[i + 2] = c[2];
+    imageData.data[i + 3] = 255;
+  }
+
+  // Mid-press: each cell's brightness = clamp((progress - phase) / WIN, 0, 1).
+  // A pixel is lit iff its Bayer threshold falls under the cell's brightness.
+  function renderPress(progress) {
+    for (let row = 0; row < ROWS; row++) {
+      for (let col = 0; col < COLS; col++) {
+        const phase = state.cellPhases[row * COLS + col];
+        const cellT = Math.max(0, Math.min(1, (progress - phase) / WIN));
+        for (let cy = 0; cy < CH; cy++) {
+          for (let cx = 0; cx < CW; cx++) {
+            const px = col * CW + cx;
+            const py = row * CH + cy;
+            if (px >= W || py >= H) continue;
+            const threshold = BAYER4[py & 3][px & 3] / 16;
+            pixel(px, py, cellT > threshold);
+          }
+        }
+      }
+    }
+    ctx.putImageData(imageData, 0, 0);
+  }
+
+  // Uniform brightness across the whole buffer — used for the success state
+  // (b = 1) and the reverse fade.
+  function renderUniform(b) {
+    for (let py = 0; py < H; py++) {
+      for (let px = 0; px < W; px++) {
+        const threshold = BAYER4[py & 3][px & 3] / 16;
+        pixel(px, py, b > threshold);
+      }
+    }
+    ctx.putImageData(imageData, 0, 0);
+  }
+
+  function renderFullDither() { renderUniform(1); }
+
+  function fillBlack() {
+    for (let i = 0; i < imageData.data.length; i += 4) {
+      imageData.data[i]     = 0;
+      imageData.data[i + 1] = 0;
+      imageData.data[i + 2] = 0;
+      imageData.data[i + 3] = 255;
+    }
+    ctx.putImageData(imageData, 0, 0);
+  }
+
+  // ── Success / reset ─────────────────────────────────────────────────────
+
+  function onSuccess() {
+    status.textContent = "→ passkey would fire here";
+    status.classList.add("show");
+    // In production this is the WebAuthn handshake: navigator.credentials.get()
+    // with the server's challenge, then POST the signed assertion. The
+    // dither stays at full reveal as the visual confirmation of the rite.
+  }
+
+  function reset() {
+    state.revealed = false;
+    fillBlack();
+    status.classList.remove("show");
+    setTimeout(() => { status.textContent = ""; }, 400);
+    hint.classList.remove("hidden");
+  }
+</script>
+</body>
+</html>

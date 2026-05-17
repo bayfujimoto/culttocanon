@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import { githubWritePlugin } from "./src/admin/plugin/github-write.js";
 import { thesisVersionPlugin } from "./vite-plugin-thesis-version.js";
 import { imageDitherPlugin } from "./build/vite-plugin-image-dither.js";
+import { backgroundPixelatePlugin } from "./build/vite-plugin-background-pixelate.js";
 
 // Three entry points share a single Vite build:
 //   /          → index.html       (public site, [data-theme="public"])
@@ -26,7 +27,12 @@ import { imageDitherPlugin } from "./build/vite-plugin-image-dither.js";
 export default defineConfig({
   root: ".",
   publicDir: "public",
-  plugins: [githubWritePlugin(), thesisVersionPlugin(), imageDitherPlugin()],
+  plugins: [
+    githubWritePlugin(),
+    thesisVersionPlugin(),
+    imageDitherPlugin(),
+    backgroundPixelatePlugin(),
+  ],
   build: {
     outDir: "dist",
     emptyOutDir: true,

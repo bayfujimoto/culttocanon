@@ -1,0 +1,48 @@
+/* ── Public background layer ─────────────────────────────────────────────────
+   A single fixed div that sits behind the centered shell window. The image,
+   visible only in the margin around #app, rotates daily and respects the
+   reader's `:bg` treatment preference.
+   ───────────────────────────────────────────────────────────────────────── */
+
+.ctc-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;                         /* under #app; body backdrop shows through if hidden */
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  pointer-events: none;
+}
+
+/* The centered shell needs an explicit stacking context to land above the
+   fixed bg layer. Without this, position:static #app would render below. */
+#app {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Treatment modifiers ─────────────────────────────────────────────────── */
+
+/* Default — untreated source. No-op rule for documentation. */
+.ctc-bg.is-original { /* no filter */ }
+
+/* Pixelated — small source upscaled with nearest-neighbour. Both keywords
+   declared because browsers diverge on the preferred name. */
+.ctc-bg.is-pixelated {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* Duotone — luminance collapse plus a base02 → base2 ramp. Filter is defined
+   inline in background.js so the SVG defs travel with the JS that uses them. */
+.ctc-bg.is-duotone {
+  filter: url(#ctc-bg-duotone);
+  /* Slight scale-up hides edge artifacts from the filter applied to a fixed
+     element extending to the viewport edge. */
+  transform: scale(1.02);
+}
+
+/* Off — no background image at all; reveal the page --bg-backdrop. */
+.ctc-bg.is-off {
+  display: none;
+}

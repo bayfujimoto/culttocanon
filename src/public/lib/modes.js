@@ -21,6 +21,7 @@ const COMMANDS = [
   { name: "e",    needsArg: true,  hint: "open <id-or-slug>" },
   { name: "q",    needsArg: false, hint: "close current piece" },
   { name: "home", needsArg: false, hint: "return to /" },
+  { name: "bg",   needsArg: true,  hint: "<original|pixelated|duotone|off>" },
 ];
 
 let mode          = "normal";
@@ -43,6 +44,7 @@ function isMobile() {
  *     onCommandE(arg),           // `:e <arg>`
  *     onCommandQ(),              // `:q`
  *     onCommandHome(),           // `:home`
+ *     onCommandBg(arg),          // `:bg <treatment>`
  *     onReset(),                 // Esc pressed (no overlay open)
  *   }
  */
@@ -209,6 +211,10 @@ function executeCommand(raw) {
       break;
     case "home":
       handlers.onCommandHome?.();
+      break;
+    case "bg":
+      if (arg) handlers.onCommandBg?.(arg);
+      else flashStatus("usage: :bg <original|pixelated|duotone|off>");
       break;
     default:
       flashStatus(`not a command: ${name}`);
