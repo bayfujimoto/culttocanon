@@ -1,9 +1,10 @@
 ---
 id: ESS-2026-000
-version: 0.1.0
+version: 0.2.0
 slug: site-thesis
 title: Site Thesis
 created: 2026-05-16
+revised: 2026-05-18
 status: draft
 kind: essay
 register: academic
@@ -13,6 +14,9 @@ subjects:
   - canon-formation
 visibility: public
 ---
+
+
+![](images/008.jpg)
 
 ## Defining Cult and Canon
 
@@ -26,4 +30,6 @@ In the contemporary age, it seems to me that what would be considered cult class
 
 ## Cult to Canon
 
-I want *Cult to Canon* to develop a posture towards individual works -- what has earned its place in the canon, what texts might be overvalued, how do texts try to avert canon and intentionally cultivate cult-following. In arguing for or against certain texts, the site gradually synthesizes into a grander personal statement on culture. The site's architecture also allows for the documentation of changes in opinion and confidence in those opinions. There will be fragments, notes, reviews, fiction, and fully articulated essays. Different posts will have different registers, from the lyrical to the polemical. However, not every post will seek to have a stance. The goal is not to accumulate every thought I have on culture, it is to investigate it thoroughly. The thread that ties the site together is the concept of *Cult* and *Canon*, but also my own singular authorial voice.
+The site name "Cult to Canon" implies that a work moves from cult status to canonical status. This is not always true, and these two concepts often overlap. The name of the site comes from an offhand comment from a podcast I watched on the elevation of horror from YouTube to feature films. I hope to explore the counterarguments and contradictions of this supposed pipeline and to use the phrase "Cult to Canon" as an idea to investigate and critique, not as an organizing framework for my thinking.
+
+I want *Cult to Canon* to develop a posture towards individual works -- what has earned its place in the canon, what texts might be overvalued, how do texts try to avert canon and intentionally cultivate cult-following. In arguing for or against certain texts, the site gradually synthesizes into a grander personal statement on culture. The site's architecture also allows for the documentation of changes in opinion and confidence in those opinions. There will be fragments, notes, reviews, fiction, and fully articulated essays. Different posts will have different registers, from the lyrical to the polemical. However, not every post will seek to have a stance. **The goal is to investigate culture thoroughly, by challenging the validity of what "cult to canon" means.** The thread that ties the site together is the concept of *Cult* and *Canon*, but also my own singular authorial voice. Hopefully as the body of work grows, I can go back and see what my writings reflect about myself.
