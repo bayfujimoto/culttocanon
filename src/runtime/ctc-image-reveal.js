@@ -41,7 +41,9 @@ const HOVER_TRAIL_DECAY = 0.32; // probability per frame that a flipped pixel re
 // Ink / paper colors for the hover-flip detection. Match the Vite plugin's
 // emitted dither colors and the public theme tokens.
 const INK = [31, 34, 38];     // #1f2226 — matches --fg in public theme
-const PAPER = [213, 216, 219]; // #d5d8db — matches --bg in public theme
+// PAPER intentionally a touch darker than pane --bg (#d5d8db) so image edges
+// separate. Keep in sync with build/dither.js PAPER.
+const PAPER = [203, 206, 209]; // #cbced1
 
 // Track which <img>s have been enhanced so we don't double-wrap on
 // re-render. WeakSet keys by element so stale entries are GC'd when the
