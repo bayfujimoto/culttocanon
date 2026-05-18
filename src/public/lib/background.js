@@ -12,11 +12,12 @@
 //   :bg off         no image; falls back to --bg-backdrop
 //
 // Adding a new background:
-//   1. Drop an N+1.jpg into /public/backgrounds/ (the next sequential name).
-//   2. Add the bare name (no extension) to BACKGROUND_IMAGES below.
-//   The .pixelated.png variant is generated automatically at dev-server start
-//   and `vite build` by build/vite-plugin-background-pixelate.js. The
-//   build/bake-backgrounds.py script is kept as a manual fallback if you
+//   Drop an N+1.jpg into /public/backgrounds/ (the next sequential name).
+//   That's it. The directory is the single source of truth: BACKGROUND_IMAGES
+//   is auto-discovered at dev-server start and `vite build` by
+//   build/vite-plugin-background-pixelate.js, which also generates the
+//   .pixelated.png variant. Deleting a source removes it from rotation.
+//   The build/bake-backgrounds.py script is kept as a manual fallback if you
 //   want to bake outside the Vite pipeline.
 //
 // The rotation is deterministic across reloads — a date-seeded index into
@@ -24,13 +25,11 @@
 
 import "./background.css";
 
-// Ordered list of background bare-names. Each name N resolves to:
+// Ordered list of background bare-names, discovered from /public/backgrounds/
+// at build time (sorted ascending). Each name N resolves to:
 //   /backgrounds/N.jpg          full-size source (used by original + duotone)
 //   /backgrounds/N.pixelated.png small variant (used by pixelated)
-const BACKGROUND_IMAGES = [
-  "001",
-  // Add more here as you curate the set.
-];
+import { BACKGROUND_IMAGES } from "virtual:ctc-backgrounds";
 
 const TREATMENTS = ["original", "pixelated", "duotone", "off"];
 const DEFAULT_TREATMENT = "original";

@@ -35,12 +35,29 @@ const RESIZE_KERNEL  = sharp.kernel.mitchell;
 
 const SOURCE_EXTS = new Set([".jpg", ".jpeg", ".png"]);
 
+// Virtual module exposing the discovered rotation list to client code. The
+// directory is the single source of truth: src/public/lib/background.js
+// imports BACKGROUND_IMAGES from here, so dropping a source into
+// /public/backgrounds/ adds it to the daily rotation with no code edit.
+const VIRTUAL_ID = "virtual:ctc-backgrounds";
+const RESOLVED_VIRTUAL_ID = "\0" + VIRTUAL_ID;
+
 function isDerivative(filename) {
   return /\.pixelated\.png$/.test(filename);
 }
 
+// Source path → bare name (no directory, no extension). Mirrors the idiom in
+// pixelatedPathFor so the runtime URL (`<bare>.jpg`) stays in lockstep.
+function bareNameOf(srcPath) {
+  return path.basename(srcPath, path.extname(srcPath));
+}
+
 export function backgroundPixelatePlugin() {
   let projectRoot = process.cwd();
+  // Recomputed each buildStart (which runs before module load in both dev and
+  // build), cached here so the virtual module's load() returns the current
+  // scan for this process.
+  let bgNames = [];
 
   return {
     name: "ctc-background-pixelate",
@@ -49,11 +66,28 @@ export function backgroundPixelatePlugin() {
       projectRoot = config.root || process.cwd();
     },
 
+    resolveId(id) {
+      if (id === VIRTUAL_ID) return RESOLVED_VIRTUAL_ID;
+      return null;
+    },
+
+    load(id) {
+      if (id === RESOLVED_VIRTUAL_ID) {
+        return `export const BACKGROUND_IMAGES = ${JSON.stringify(bgNames)};\n`;
+      }
+      return null;
+    },
+
     // Fires at the start of both `vite dev` and `vite build`. Walks the
-    // backgrounds folder and bakes any missing or stale derivatives.
+    // backgrounds folder, bakes any missing or stale derivatives, and
+    // refreshes the rotation list served by the virtual module.
     async buildStart() {
       const bgRoot = path.resolve(projectRoot, BG_DIR);
       const sources = await findSourceImages(bgRoot);
+
+      // Sorted ascending so rotation order is stable and tracks the numeric
+      // naming scheme (001, 002, …).
+      bgNames = sources.map(bareNameOf).sort();
 
       const t0 = Date.now();
       let generated = 0;
