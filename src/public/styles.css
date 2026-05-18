@@ -268,6 +268,8 @@
 .marginalia-version--minor   { color: var(--fg); }
 .marginalia-version--major   { color: var(--accent-blue); }
 .marginalia-version--initial { color: var(--fg-dim); font-style: italic; }
+/* The live version sits at the top of the list — distinct accent + weight. */
+.marginalia-version--current { color: var(--accent-green); font-weight: 600; }
 
 .marginalia-version-cat {
   text-transform: uppercase;
@@ -328,6 +330,7 @@
 .diff-banner-category--minor        { color: var(--fg); }
 .diff-banner-category--major        { color: var(--accent-blue); }
 .diff-banner-category--initial      { color: var(--fg-dim); font-style: italic; }
+.diff-banner-category--current      { color: var(--accent-green); }
 
 .diff-banner-nav-group {
   display: inline-flex;

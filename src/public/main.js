@@ -115,7 +115,7 @@ function marginaliaOptionsFor(post) {
     allPosts:        posts,
     onSelect:        openPost,
     versions:        getHistoryById(post.id).versions,
-    onVersionSelect: (entry) => navigate(`/${post.slug}?v=${entry.version}`),
+    onVersionSelect: (entry) => navigate(`/${post.slug}?v=${entry.key || entry.version}`),
   };
 }
 
@@ -143,6 +143,9 @@ function showDiff(post, entry) {
   const newBody  = entry.body || "";
   const prevEntry = idx > 0                       ? history[idx - 1] : null;
   const nextEntry = idx >= 0 && idx + 1 < history.length ? history[idx + 1] : null;
+  // The newest snapshot's "next" walks up into the current live version so the
+  // chain reaches the top of the list rather than dead-ending.
+  const isNewest  = idx >= 0 && idx + 1 === history.length;
 
   renderDiff(readBody, {
     oldBody,
@@ -154,7 +157,40 @@ function showDiff(post, entry) {
       date:     entry.revised,
     },
     onPrev:  prevEntry ? () => navigate(`/${post.slug}?v=${prevEntry.version}`) : null,
-    onNext:  nextEntry ? () => navigate(`/${post.slug}?v=${nextEntry.version}`) : null,
+    onNext:  nextEntry  ? () => navigate(`/${post.slug}?v=${nextEntry.version}`)
+           : isNewest   ? () => navigate(`/${post.slug}?v=current`)
+           : null,
+    onClose: closeDiff,
+  });
+
+  renderMarginalia(margBody, post, marginaliaOptionsFor(post));
+  setBrowseSelected(post.id);
+}
+
+// Show the diff that produced the *current* live version: the newest history
+// snapshot (its last superseded state) against the live .md body. With no
+// history the old side is empty, so it renders as an initial-publish all-add.
+// The banner's close button (see lib/post-renderer.js) and Esc both go back to
+// the post; there is no "next" since current is the newest.
+function showCurrentDiff(post) {
+  currentPost = post;
+  diffOpen    = true;
+
+  const history  = getHistoryById(post.id).versions;
+  const newest   = history.length ? history[history.length - 1] : null;
+
+  renderDiff(readBody, {
+    oldBody: newest ? (newest.body || "") : "",
+    newBody: post.body || "",
+    banner: {
+      id:        post.id,
+      version:   post.version,
+      category:  "current",
+      date:      post.revised ? post.revised.toISOString().slice(0, 10) : "",
+      isCurrent: true,
+    },
+    onPrev:  newest ? () => navigate(`/${post.slug}?v=${newest.version}`) : null,
+    onNext:  null,
     onClose: closeDiff,
   });
 
@@ -212,7 +248,9 @@ initRouter((slug, path, version) => {
     showNotFound(path);
     return;
   }
-  if (version) {
+  if (version === "current") {
+    showCurrentDiff(post);
+  } else if (version) {
     const entry = getHistoryById(post.id).versions.find(e => e.version === version);
     if (entry) {
       showDiff(post, entry);

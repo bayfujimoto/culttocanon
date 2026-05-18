@@ -26,17 +26,30 @@ export function renderMarginalia(container, post, { allPosts, onSelect, versions
   if (post.revised) rows.push(["revised", formatDate(post.revised)]);
   rows.push(["length",     `${post.length} words`]);
 
-  if (versions?.length) {
+  // The current live version is not part of `versions` (that array holds only
+  // superseded snapshots). Synthesize a row for it at the top of the list so
+  // it's clickable like any other; it routes via the `current` sentinel rather
+  // than its semver (see public/main.js) so reloads land on the same diff and
+  // a current version that happens to match a historical string never collides.
+  const currentEntry = {
+    key:      "current",
+    version:  post.version,
+    category: "current",
+    revised:  formatDate(post.revised),
+  };
+  const verEntries = [currentEntry, ...(versions || []).slice().reverse()];
+  {
     // Newest-first; each row shows version, revised date, and category, with
-    // category-class for color. URL fragment is `?v=X.Y.Z` so reloads land on
-    // the same diff. The click handler intercepts and goes through the SPA
-    // navigator (see public/main.js); the href is the no-JS fallback.
-    const verHtml = versions.slice().reverse().map((v) => {
+    // category-class for color. URL fragment is `?v=X.Y.Z` (or `?v=current`)
+    // so reloads land on the same diff. The click handler intercepts and goes
+    // through the SPA navigator (see public/main.js); href is the no-JS fallback.
+    const verHtml = verEntries.map((v) => {
+      const key = v.key || v.version || "earlier";
       const ver = v.version || "earlier";
       const cat = v.category || "patch";
       const rev = v.revised || "";
       return `<a class="marginalia-version marginalia-version--${escapeAttr(cat)}" ` +
-             `data-version="${escapeAttr(ver)}" href="?v=${escapeAttr(ver)}">` +
+             `data-version="${escapeAttr(key)}" href="?v=${escapeAttr(key)}">` +
              `v${escapeHTML(ver)}` +
              (rev ? ` · ${escapeHTML(rev)}` : "") +
              ` · <span class="marginalia-version-cat">${escapeHTML(cat)}</span>` +
@@ -93,14 +106,15 @@ export function renderMarginalia(container, post, { allPosts, onSelect, versions
     });
   }
 
-  // Wire version clicks → look up the entry by version string and fire the
-  // callback. The caller (public/main.js) navigates to `/{slug}?v={version}`
-  // so the URL stays in sync with what's displayed.
-  if (onVersionSelect && versions?.length) {
+  // Wire version clicks → look up the entry by its routing key and fire the
+  // callback. The caller (public/main.js) navigates to `/{slug}?v={key}`
+  // so the URL stays in sync with what's displayed. The combined list includes
+  // the synthetic current entry, keyed `current`.
+  if (onVersionSelect) {
     container.querySelectorAll(".marginalia-version").forEach(a => {
       a.addEventListener("click", (e) => {
         e.preventDefault();
-        const v = versions.find(x => x.version === a.dataset.version);
+        const v = verEntries.find(x => (x.key || x.version) === a.dataset.version);
         if (v) onVersionSelect(v);
       });
     });

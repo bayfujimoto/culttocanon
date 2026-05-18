@@ -114,6 +114,7 @@ export function renderDiff(container, opts = {}) {
   const ver  = banner.version  || "";
   const cat  = banner.category || "";
   const date = banner.date     || "";
+  const isCurrent = !!banner.isCurrent;
 
   const prevAttr = onPrev ? "" : "disabled";
   const nextAttr = onNext ? "" : "disabled";
@@ -130,7 +131,9 @@ export function renderDiff(container, opts = {}) {
         </span>
         <span class="diff-banner-nav-group">
           <button type="button" class="diff-banner-nav" data-nav="prev" ${prevAttr} title="older version">← prev</button>
-          <button type="button" class="diff-banner-nav" data-nav="current" title="back to current (Esc)">view current</button>
+          ${isCurrent
+            ? `<button type="button" class="diff-banner-nav" data-nav="close" title="close diff view (Esc)">close diff view</button>`
+            : `<button type="button" class="diff-banner-nav" data-nav="current" title="back to current (Esc)">view current</button>`}
           <button type="button" class="diff-banner-nav" data-nav="next" ${nextAttr} title="newer version">next →</button>
         </span>
       </div>
@@ -143,7 +146,7 @@ export function renderDiff(container, opts = {}) {
       const nav = btn.dataset.nav;
       if (nav === "prev"    && onPrev)  onPrev();
       else if (nav === "next"    && onNext)  onNext();
-      else if (nav === "current" && onClose) onClose();
+      else if ((nav === "current" || nav === "close") && onClose) onClose();
     });
   });
 }
