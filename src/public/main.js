@@ -109,12 +109,16 @@ let diffOpen    = false;   // true while the Read pane shows a version diff
 // closing the diff) navigate() to a new URL and let the router re-resolve.
 
 // Marginalia uses identical options whether we're in post or diff mode, so
-// the version list stays clickable while a diff is open.
-function marginaliaOptionsFor(post) {
+// the version list stays clickable while a diff is open. `activeVersion` is
+// the routing key of the version currently shown as a diff (`current` or a
+// semver), or null when viewing the rendered post — marginalia bolds the
+// matching row so it's obvious which one you're reading.
+function marginaliaOptionsFor(post, activeVersion = null) {
   return {
     allPosts:        posts,
     onSelect:        openPost,
     versions:        getHistoryById(post.id).versions,
+    activeVersion,
     onVersionSelect: (entry) => navigate(`/${post.slug}?v=${entry.key || entry.version}`),
   };
 }
@@ -123,7 +127,7 @@ function showPost(post) {
   currentPost = post;
   diffOpen    = false;
   renderPost(post, readBody);
-  renderMarginalia(margBody, post, marginaliaOptionsFor(post));
+  renderMarginalia(margBody, post, marginaliaOptionsFor(post, null));
   setBrowseSelected(post.id);
 }
 
@@ -148,6 +152,7 @@ function showDiff(post, entry) {
   const isNewest  = idx >= 0 && idx + 1 === history.length;
 
   renderDiff(readBody, {
+    post,
     oldBody,
     newBody,
     banner: {
@@ -163,7 +168,7 @@ function showDiff(post, entry) {
     onClose: closeDiff,
   });
 
-  renderMarginalia(margBody, post, marginaliaOptionsFor(post));
+  renderMarginalia(margBody, post, marginaliaOptionsFor(post, entry.version));
   setBrowseSelected(post.id);
 }
 
@@ -180,6 +185,7 @@ function showCurrentDiff(post) {
   const newest   = history.length ? history[history.length - 1] : null;
 
   renderDiff(readBody, {
+    post,
     oldBody: newest ? (newest.body || "") : "",
     newBody: post.body || "",
     banner: {
@@ -194,7 +200,7 @@ function showCurrentDiff(post) {
     onClose: closeDiff,
   });
 
-  renderMarginalia(margBody, post, marginaliaOptionsFor(post));
+  renderMarginalia(margBody, post, marginaliaOptionsFor(post, "current"));
   setBrowseSelected(post.id);
 }
 

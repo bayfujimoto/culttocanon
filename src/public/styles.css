@@ -253,7 +253,7 @@
 }
 
 .marginalia-version {
-  color: var(--fg);
+  color: var(--fg-dim);
   text-decoration: none;
   border-bottom: 1px dotted currentColor;
   font-variant-numeric: tabular-nums;
@@ -263,19 +263,12 @@
   opacity: 0.7;
 }
 
-/* Per-category color: patch muted, minor standard fg (inherits), major accent. */
-.marginalia-version--patch   { color: var(--fg-dim); }
-.marginalia-version--minor   { color: var(--fg); }
-.marginalia-version--major   { color: var(--accent-blue); }
-.marginalia-version--initial { color: var(--fg-dim); font-style: italic; }
-/* The live version sits at the top of the list — distinct accent + weight. */
-.marginalia-version--current { color: var(--accent-green); font-weight: 600; }
-
-.marginalia-version-cat {
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  font-size: 10px;
-  opacity: 0.85;
+/* Default rows are a lighter grey; the version currently being viewed
+   (a diff is open on it) is ink-colored and italic so it's obvious which
+   one you're reading. */
+.marginalia-version.is-active {
+  color: var(--fg);
+  font-style: italic;
 }
 
 .marginalia-empty {
@@ -296,17 +289,22 @@
   font-family: var(--font-mono);
 }
 
+/* Floats over the diff at the bottom of the read pane: sticky to the
+   scroll container's bottom edge as the last child, so it stays reachable
+   while the diff scrolls underneath it. `.diff-body` carries matching
+   bottom padding so the final lines clear the bar. */
 .diff-banner {
   position: sticky;
-  top: 0;
+  bottom: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   padding: 6px 8px;
-  margin-bottom: 12px;
+  margin-top: 12px;
   background: var(--bg-elevated);
   border: 1px solid var(--border-faint);
+  box-shadow: 0 -4px 12px -4px var(--bg-backdrop);
   font-size: var(--text-xs);
   z-index: 1;
 }
@@ -365,6 +363,8 @@
   line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;
+  /* Clear the floating banner so the last lines aren't hidden behind it. */
+  padding-bottom: 44px;
 }
 
 .diff-line {
@@ -389,6 +389,21 @@
 .diff-line--del {
   color: var(--accent-red);
   background: color-mix(in srgb, var(--accent-red) 8%, transparent);
+}
+
+/* Modified paragraph: neutral container — the words carry the color, so
+   unchanged text reads as normal context (no full-width tint). */
+.diff-line--mod { color: var(--fg); }
+
+.diff-word--del {
+  color: var(--accent-red);
+  background: color-mix(in srgb, var(--accent-red) 8%, transparent);
+  text-decoration: line-through;
+}
+
+.diff-word--add {
+  color: var(--accent-green);
+  background: color-mix(in srgb, var(--accent-green) 8%, transparent);
 }
 
 /* ── Mobile: disable persistent cursor highlight in Browse ───────────────── */

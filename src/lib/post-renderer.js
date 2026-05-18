@@ -7,7 +7,7 @@
 // embeds yet. Phase 4 (iteration) can add what real pieces need.
 
 import { marked, Marked } from "marked";
-import { diffLines } from "./line-diff.js";
+import { diffLines, diffWords } from "./line-diff.js";
 import { imageAttributesExtension } from "../markdown/image-attributes.js";
 import { makeImageRendererExtension }  from "../markdown/image-renderer.js";
 import { enhanceImages }               from "../runtime/ctc-image-reveal.js";
@@ -39,6 +39,35 @@ function parseBodyFor(post) {
 }
 
 /**
+ * Build the post header markup (kind/status, title, epigraph, id + dates).
+ * Shared by `renderPost` and `renderDiff` so the diff view shows the same
+ * header as the rendered post. Returns "" for a falsy post.
+ */
+function renderPostHeader(post) {
+  if (!post) return "";
+
+  const created = formatDate(post.created);
+  const revised = post.revised ? formatDate(post.revised) : null;
+
+  return `
+    <header class="post-header">
+      <div class="post-kind-row">
+        <span class="post-kind">${escapeHTML(post.kind)}</span>
+        <span class="post-status post-status--${escapeAttr(post.status)}">${escapeHTML(post.status)}</span>
+      </div>
+      <h1 class="post-title">${escapeHTML(post.title)}</h1>
+      ${post.epigraph ? `<p class="post-epigraph">${escapeHTML(post.epigraph)}</p>` : ""}
+      <div class="post-meta">
+        <span class="post-meta-id">${escapeHTML(post.id)}</span>
+        <span class="post-meta-sep">·</span>
+        <time class="post-meta-date" datetime="${created.iso}">${created.human}</time>
+        ${revised ? `<span class="post-meta-sep">·</span><time class="post-meta-revised" datetime="${revised.iso}">revised ${revised.human}</time>` : ""}
+      </div>
+    </header>
+  `;
+}
+
+/**
  * Render `post` into `container`. Replaces all contents of `container`.
  */
 export function renderPost(post, container) {
@@ -47,25 +76,9 @@ export function renderPost(post, container) {
     return;
   }
 
-  const created = formatDate(post.created);
-  const revised = post.revised ? formatDate(post.revised) : null;
-
   container.innerHTML = `
     <article class="post">
-      <header class="post-header">
-        <div class="post-kind-row">
-          <span class="post-kind">${escapeHTML(post.kind)}</span>
-          <span class="post-status post-status--${escapeAttr(post.status)}">${escapeHTML(post.status)}</span>
-        </div>
-        <h1 class="post-title">${escapeHTML(post.title)}</h1>
-        ${post.epigraph ? `<p class="post-epigraph">${escapeHTML(post.epigraph)}</p>` : ""}
-        <div class="post-meta">
-          <span class="post-meta-id">${escapeHTML(post.id)}</span>
-          <span class="post-meta-sep">·</span>
-          <time class="post-meta-date" datetime="${created.iso}">${created.human}</time>
-          ${revised ? `<span class="post-meta-sep">·</span><time class="post-meta-revised" datetime="${revised.iso}">revised ${revised.human}</time>` : ""}
-        </div>
-      </header>
+      ${renderPostHeader(post)}
       <div class="post-body">${parseBodyFor(post)}</div>
     </article>
   `;
@@ -89,6 +102,7 @@ export function renderPost(post, container) {
  *
  * @param {HTMLElement} container
  * @param {Object} opts
+ * @param {Object} [opts.post]                        post, for the header
  * @param {string} opts.oldBody                       earlier body (or "")
  * @param {string} opts.newBody                       this version's body
  * @param {Object} opts.banner                        { id, version, category, date }
@@ -97,18 +111,64 @@ export function renderPost(post, container) {
  * @param {Function} [opts.onClose]                   back to current state
  */
 export function renderDiff(container, opts = {}) {
-  const { oldBody, newBody, banner = {}, onPrev, onNext, onClose } = opts;
+  const { post, oldBody, newBody, banner = {}, onPrev, onNext, onClose } = opts;
 
   const rows  = diffLines(oldBody || "", newBody || "");
-  const SIGIL = { ctx: " ", add: "+", del: "-" };
+  const SIGIL = { ctx: " ", add: "+", del: "-", mod: "~" };
 
-  const lines = rows.map(r => {
-    const sigil = SIGIL[r.type] || " ";
-    return `<div class="diff-line diff-line--${r.type}">` +
-           `<span class="diff-sigil">${sigil}</span>` +
-           `<span class="diff-text">${escapeHTML(r.text) || "&nbsp;"}</span>` +
-           `</div>`;
-  }).join("");
+  // Coalesce adjacent del/add runs so a del-run immediately followed by an
+  // add-run renders as merged word-diff paragraphs instead of a full red
+  // paragraph + full green paragraph. ctx rows and unpaired add/del runs
+  // render exactly as the old 1:1 mapping did.
+  const renderLine = (type, html) =>
+    `<div class="diff-line diff-line--${type}">` +
+    `<span class="diff-sigil">${SIGIL[type] || " "}</span>` +
+    `<span class="diff-text">${html || "&nbsp;"}</span>` +
+    `</div>`;
+
+  const out = [];
+  for (let k = 0; k < rows.length; ) {
+    const r = rows[k];
+    if (r.type === "ctx") {
+      out.push(renderLine("ctx", escapeHTML(r.text)));
+      k++;
+      continue;
+    }
+    // Gather a maximal del-run, then the add-run that immediately follows.
+    // Blank lines have no words to diff — pairing them would word-render a
+    // whole paragraph as all-add/all-del (the empty-old initial-publish case
+    // splits to a single "" del). Emit them as plain rows and pair only the
+    // content lines, so initial publishes stay clean +/- as before.
+    const rawDels = [];
+    while (k < rows.length && rows[k].type === "del") { rawDels.push(rows[k].text); k++; }
+    const rawAdds = [];
+    while (k < rows.length && rows[k].type === "add") { rawAdds.push(rows[k].text); k++; }
+    for (const t of rawDels) if (t === "") out.push(renderLine("del", "&nbsp;"));
+    for (const t of rawAdds) if (t === "") out.push(renderLine("add", "&nbsp;"));
+    const dels = rawDels.filter(t => t !== "");
+    const adds = rawAdds.filter(t => t !== "");
+
+    if (dels.length && adds.length) {
+      // Modified block: pair lines by index, word-diff each pair into one
+      // merged line; surplus lines on the longer side fall back to plain.
+      const paired = Math.min(dels.length, adds.length);
+      for (let p = 0; p < paired; p++) {
+        const seg = diffWords(dels[p], adds[p]).map(w =>
+          w.type === "ctx"
+            ? escapeHTML(w.text)
+            : `<span class="diff-word--${w.type}">${escapeHTML(w.text)}</span>`
+        ).join("");
+        out.push(renderLine("mod", seg));
+      }
+      for (let p = paired; p < dels.length; p++) out.push(renderLine("del", escapeHTML(dels[p])));
+      for (let p = paired; p < adds.length; p++) out.push(renderLine("add", escapeHTML(adds[p])));
+    } else {
+      // Pure deletion or pure insertion — render as today.
+      for (const t of dels) out.push(renderLine("del", escapeHTML(t)));
+      for (const t of adds) out.push(renderLine("add", escapeHTML(t)));
+    }
+  }
+  const lines = out.join("");
 
   const id   = banner.id       || "";
   const ver  = banner.version  || "";
@@ -119,8 +179,13 @@ export function renderDiff(container, opts = {}) {
   const prevAttr = onPrev ? "" : "disabled";
   const nextAttr = onNext ? "" : "disabled";
 
+  // Header (same as the rendered post) at the top, then the diff body, then
+  // the banner — CSS pins the banner as a floating bar at the bottom of the
+  // read pane (see .diff-banner in styles.css).
   container.innerHTML = `
     <article class="post post--diff">
+      ${renderPostHeader(post)}
+      <div class="diff-body">${lines}</div>
       <div class="diff-banner">
         <span class="diff-banner-label">
           reading diff:
@@ -137,7 +202,6 @@ export function renderDiff(container, opts = {}) {
           <button type="button" class="diff-banner-nav" data-nav="next" ${nextAttr} title="newer version">next →</button>
         </span>
       </div>
-      <div class="diff-body">${lines}</div>
     </article>
   `;
 

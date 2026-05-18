@@ -2,7 +2,7 @@
 // Paratext for the currently-open post. Shows status, kind, register, dates,
 // confidence, subjects, and links. When no post is open, shows a brief hint.
 
-export function renderMarginalia(container, post, { allPosts, onSelect, versions, onVersionSelect } = {}) {
+export function renderMarginalia(container, post, { allPosts, onSelect, versions, onVersionSelect, activeVersion } = {}) {
   if (!container) return;
 
   if (!post) {
@@ -39,20 +39,23 @@ export function renderMarginalia(container, post, { allPosts, onSelect, versions
   };
   const verEntries = [currentEntry, ...(versions || []).slice().reverse()];
   {
-    // Newest-first; each row shows version, revised date, and category, with
-    // category-class for color. URL fragment is `?v=X.Y.Z` (or `?v=current`)
-    // so reloads land on the same diff. The click handler intercepts and goes
-    // through the SPA navigator (see public/main.js); href is the no-JS fallback.
+    // Newest-first; each row shows version, revised date, and category.
+    // URL fragment is `?v=X.Y.Z` (or `?v=current`) so reloads land on the
+    // same diff. The click handler intercepts and goes through the SPA
+    // navigator (see public/main.js); href is the no-JS fallback. Rows are
+    // visually uniform; only the version currently being viewed
+    // (`activeVersion`, set while a diff is open) gets `is-active` → bold.
     const verHtml = verEntries.map((v) => {
       const key = v.key || v.version || "earlier";
       const ver = v.version || "earlier";
       const cat = v.category || "patch";
       const rev = v.revised || "";
-      return `<a class="marginalia-version marginalia-version--${escapeAttr(cat)}" ` +
+      const cls = "marginalia-version" + (key === activeVersion ? " is-active" : "");
+      return `<a class="${cls}" ` +
              `data-version="${escapeAttr(key)}" href="?v=${escapeAttr(key)}">` +
              `v${escapeHTML(ver)}` +
              (rev ? ` · ${escapeHTML(rev)}` : "") +
-             ` · <span class="marginalia-version-cat">${escapeHTML(cat)}</span>` +
+             ` · ${escapeHTML(cat)}` +
              `</a>`;
     }).join("<br>");
     rows.push(["versions", verHtml]);
