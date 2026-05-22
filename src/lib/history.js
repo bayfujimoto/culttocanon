@@ -79,6 +79,15 @@ export function getHistoryById(id) {
 }
 
 /**
+ * Replace the in-memory history for a post id. Used by the admin dispatch flow
+ * after a successful commit, so the next `getHistoryById` reflects what was
+ * just written to disk instead of the boot-time snapshot.
+ */
+export function setHistory(id, history) {
+  BY_ID.set(id, normalizeHistory(id, history));
+}
+
+/**
  * Pure: return a new history object with `entry` appended (oldest first).
  * `entry` = { version, category, revised, words, body }. Does not mutate
  * `existing`. `version` is the semver the snapshot was taken at; `category`

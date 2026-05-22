@@ -19,7 +19,7 @@
 import { STATUS, KIND, REGISTER, CONFIDENCE, VISIBILITY } from "../../lib/vocabularies.js";
 import { slugify } from "../../lib/slug.js";
 import { serializePost, filePathFor, folderNameFor } from "../lib/serializer.js";
-import { stageChange } from "../state.js";
+import { stageChange, getState } from "../state.js";
 import { createListbox } from "./listbox.js";
 import { parseId, formatId } from "../../lib/id.js";
 import { addImageToQueue } from "../lib/image-queue.js";
@@ -158,9 +158,12 @@ export function save() {
     return;
   }
 
-  // Editing — bump relative to the post's current version (held on _post,
-  // not the form, since version has no input).
-  const current = _post?.version || "0.1.0";
+  // Editing — bump relative to the post's current version. Read from the live
+  // state.allPosts (refreshed by dispatch after each successful commit) so a
+  // back-to-back save on the same open form doesn't bump from the stale value
+  // captured when this form was first rendered.
+  const live    = getState().allPosts.find(p => p.id === data.id);
+  const current = live?.version || _post?.version || "0.1.0";
   openBumpPicker({ id: data.id, version: current }, {
     onConfirm: (category) => {
       const newVersion = bumpVersion(current, category);

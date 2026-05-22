@@ -66,3 +66,16 @@ export function stageChange(change) {
 export function clearPending() {
   setState({ pendingChanges: [] });
 }
+
+/**
+ * Update the in-memory `allPosts` after a successful commit, so subsequent
+ * reads (version bumps, picker projections, router lookups) see the new
+ * version/revised/body instead of the boot-time snapshot.
+ */
+export function upsertPost(post) {
+  const i = state.allPosts.findIndex(p => p.id === post.id);
+  const next = state.allPosts.slice();
+  if (i >= 0) next[i] = post;
+  else        next.push(post);
+  setState({ allPosts: next });
+}

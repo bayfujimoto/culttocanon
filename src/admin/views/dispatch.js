@@ -12,14 +12,15 @@
 // path as the Index click). Click the commit button → bundle all pending
 // changes into one /api/commit-all call.
 
-import { getState, setState, subscribe, clearPending } from "../state.js";
+import { getState, setState, subscribe, clearPending, upsertPost } from "../state.js";
 import { commitAll }                                   from "../lib/api.js";
 import { parseFrontMatter }                            from "../../lib/front-matter.js";
-import { serializePost }                               from "../lib/serializer.js";
+import { serializePost, folderNameFor }                from "../lib/serializer.js";
 import {
   getHistoryById,
   appendVersion,
   historyPathFor,
+  setHistory,
   wordCount,
 } from "../../lib/history.js";
 import { bumpVersion, bumpCategoryBetween } from "../lib/version.js";
@@ -82,13 +83,19 @@ export async function triggerCommit() {
   // Format: `{id} v{version} [{category}]`.
   const headers = [];
 
+  // In-memory cache updates to apply after a successful commit. Keyed by id so
+  // we don't apply anything if the server rejects the commit.
+  const postUpdates    = new Map();
+  const historyUpdates = new Map();
+
   for (const change of snapshot) {
     if (change.action === "add") {
       // Adds emit at the start version the author chose at save time
       // (0.1.0 or 1.0.0); fall back to whatever the content carries.
-      const { data } = parseFrontMatter(change.content);
+      const { data, body } = parseFrontMatter(change.content);
       const version  = change.startVersion || data?.version || "0.1.0";
       headers.push(`${change.id} v${version} [initial]`);
+      postUpdates.set(change.id, postFromCommitted(data, body, version, {}));
       continue;
     }
 
@@ -143,6 +150,7 @@ export async function triggerCommit() {
         filePath: historyPathFor(change.id),
         content:  JSON.stringify(next, null, 2) + "\n",
       });
+      historyUpdates.set(change.id, next);
     }
 
     // Bump version, auto-stamp revised, re-serialize.
@@ -152,6 +160,8 @@ export async function triggerCommit() {
     change.content  = restamped;
     const f = files.find(x => x.filePath === change.filePath);
     if (f) f.content = restamped;
+
+    postUpdates.set(change.id, postFromCommitted(data, body, newVersion, prior));
 
     headers.push(`${change.id} v${newVersion} [${bump}]`);
   }
@@ -186,6 +196,10 @@ export async function triggerCommit() {
         mode:      result.mode,
         ok:        true,
       });
+      // Refresh in-memory caches so a subsequent edit/bump on the same post
+      // (without a page reload) sees the just-committed version and history.
+      for (const post of postUpdates.values())     upsertPost(post);
+      for (const [id, hist] of historyUpdates)     setHistory(id, hist);
       clearPending();
       clearQueue();
       const summary = `committed ${snapshot.length} change${snapshot.length > 1 ? "s" : ""}` + imageNote;
@@ -353,6 +367,40 @@ function summarize(c) {
 
 function formatTime(d) {
   return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+}
+
+// Build the in-memory Post shape that matches what post-loader would produce
+// for the just-committed content. Used to refresh `allPosts` so a follow-up
+// edit/bump reads the new version instead of the boot-time snapshot.
+//
+//   data    parsed frontmatter (with version/revised already set for edits)
+//   body    markdown body string
+//   version the committed version (authoritative)
+//   prior   the pre-commit Post when present (preserves _file / folder on edit)
+function postFromCommitted(data, body, version, prior) {
+  const trimmedBody = String(body ?? "").trim();
+  const folder = prior?.folder || folderNameFor({ id: data.id, slug: data.slug });
+  return {
+    ...(prior || {}),
+    id:         data.id,
+    version,
+    slug:       data.slug,
+    title:      data.title,
+    created:    data.created ?? prior?.created ?? null,
+    revised:    data.revised ?? prior?.revised ?? null,
+    status:     data.status,
+    kind:       data.kind,
+    register:   data.register,
+    confidence: data.confidence ?? null,
+    subjects:   Array.isArray(data.subjects) ? data.subjects : [],
+    links:      Array.isArray(data.links)    ? data.links    : [],
+    visibility: data.visibility,
+    series:     data.series   ?? null,
+    epigraph:   data.epigraph ?? null,
+    length:     wordCount(trimmedBody),
+    body:       trimmedBody,
+    folder,
+  };
 }
 
 // Coerce a Date|string into a YYYY-MM-DD string for the history entry.

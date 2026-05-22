@@ -128,9 +128,13 @@ const manuBody  = document.querySelector("#pane-m .shell-pane-body");
 const dispBody  = document.querySelector("#pane-d .shell-pane-body");
 
 // ── Load posts ──────────────────────────────────────────────────────────────
+// Post lookups go through `getState().allPosts` so a successful commit
+// refreshes them (see dispatch.js → upsertPost). The local `allPosts` is the
+// boot-time snapshot; it's safe for the Index render and the new-post id
+// minter but should not be used for per-post version reads.
 const allPosts = getAllPosts();
-const byId     = new Map(allPosts.map(p => [p.id, p]));
 setState({ allPosts });
+const findPost = (id) => getState().allPosts.find(p => p.id === id);
 
 // ── Dispatch (init once, lives across routes) ────────────────────────────────
 initDispatch(dispBody, {
@@ -150,7 +154,7 @@ initRouter((route) => {
   });
 
   if (route.view === "edit") {
-    const post = byId.get(route.id);
+    const post = findPost(route.id);
     if (!post) {
       manuBody.innerHTML = `<div class="dashboard"><p class="dashboard-empty">no piece with id <code>${escape(route.id)}</code></p></div>`;
       return;
@@ -198,7 +202,8 @@ initModes({
     navigate("#/new");
   },
   onE: (arg) => {
-    const post = byId.get(arg) || allPosts.find(p => p.slug === arg);
+    const posts = getState().allPosts;
+    const post  = posts.find(p => p.id === arg) || posts.find(p => p.slug === arg);
     if (post) navigate(`#/edit/${post.id}`);
     else      flashStatus(`no piece "${arg}"`);
   },
