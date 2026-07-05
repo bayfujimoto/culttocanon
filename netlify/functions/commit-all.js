@@ -13,10 +13,16 @@
 //   {
 //     files: [
 //       { filePath: "src/content/posts/.../post.md",  content: "---\n..." },                // text
-//       { filePath: "src/content/posts/.../foo.jpg",  content: "<base64>", binary: true }   // binary
+//       { filePath: "src/content/posts/.../foo.jpg",  content: "<base64>", binary: true },  // binary
+//       { filePath: "src/content/posts/ID-slug",      deleted: true, isDir: true },         // delete folder
+//       { filePath: "src/content/history/ID.json",    deleted: true }                       // delete file
 //     ],
 //     message: "add POST-2026-005",
 //   }
+//
+// Deletion entries carry `deleted: true` and no content. `isDir: true` removes
+// every blob under the folder prefix (post markdown + images); a plain file
+// delete nulls just that path if it exists.
 //
 // Binary file entries (image uploads — see src/admin/lib/image-queue.js)
 // carry their bytes as base64 in `content` with `binary: true`. The Git Data
@@ -105,10 +111,37 @@ async function githubCommitAll(files, message, token, owner, repo, branch) {
   if (!commitRes.ok) throw new Error(`Get base commit: ${commitRes.status}`);
   const baseTreeSha = (await commitRes.json()).tree.sha;
 
-  // 3. Build tree entries — each file as a blob. Binary entries pass
-  //    `encoding: "base64"`; text entries pass `"utf-8"` and the bytes
-  //    are sent as the JS string verbatim.
-  const treeItems = await Promise.all(files.map(async ({ filePath, content, binary }) => {
+  // 2b. If any entry is a deletion, fetch the recursive base tree once so we
+  //     can resolve a folder prefix (isDir) to the individual blobs it holds —
+  //     the Git Data API deletes blobs, not folders. A file delete just needs
+  //     to confirm the path exists before nulling it.
+  const hasDeletes = files.some(f => f.deleted);
+  let baseTree = [];
+  if (hasDeletes) {
+    const treeRes = await fetch(`${base}/git/trees/${baseTreeSha}?recursive=1`, { headers });
+    if (!treeRes.ok) throw new Error(`Get base tree: ${treeRes.status}`);
+    baseTree = (await treeRes.json()).tree || [];
+  }
+
+  // 3. Build tree entries. Deletions become `sha: null` items; writes create a
+  //    blob first. Binary entries pass `encoding: "base64"`; text entries pass
+  //    `"utf-8"` and the bytes are sent as the JS string verbatim.
+  const treeItems = [];
+  for (const { filePath, content, binary, deleted, isDir } of files) {
+    if (deleted) {
+      if (isDir) {
+        const prefix = filePath.replace(/\/+$/, "") + "/";
+        for (const t of baseTree) {
+          if (t.type === "blob" && t.path.startsWith(prefix)) {
+            treeItems.push({ path: t.path, mode: t.mode, type: "blob", sha: null });
+          }
+        }
+      } else {
+        const found = baseTree.find(t => t.type === "blob" && t.path === filePath);
+        if (found) treeItems.push({ path: filePath, mode: found.mode, type: "blob", sha: null });
+      }
+      continue;
+    }
     const encoding = binary ? "base64" : "utf-8";
     const blobRes = await fetch(`${base}/git/blobs`, {
       method: "POST",
@@ -117,8 +150,11 @@ async function githubCommitAll(files, message, token, owner, repo, branch) {
     });
     if (!blobRes.ok) throw new Error(`Create blob for ${filePath}: ${blobRes.status}`);
     const { sha } = await blobRes.json();
-    return { path: filePath, mode: "100644", type: "blob", sha };
-  }));
+    treeItems.push({ path: filePath, mode: "100644", type: "blob", sha });
+  }
+
+  // Nothing resolved to an actual change (e.g. deleting already-absent paths).
+  if (treeItems.length === 0) throw new Error("No tree changes to commit");
 
   // 4. Create the tree
   const treeRes = await fetch(`${base}/git/trees`, {

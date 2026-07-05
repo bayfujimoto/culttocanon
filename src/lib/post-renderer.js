@@ -61,6 +61,23 @@ function renderPostHeader(post) {
 }
 
 /**
+ * Build the post colophon markup. The incunabula convention: id, version,
+ * date in day.romanMonth.year form, and the site name — set in mono small
+ * caps to echo the topbar register and to close the piece with explicit
+ * bibliographic ceremony rather than trailing off. Returns "" for posts
+ * without an id.
+ */
+function renderColophon(post) {
+  if (!post || !post.id) return "";
+  const parts = [ escapeHTML(post.id) ];
+  if (post.version) parts.push(`v${escapeHTML(post.version)}`);
+  const d = formatColophonDate(post.created);
+  if (d) parts.push(d);
+  parts.push("cult to canon");
+  return `<footer class="post-colophon">${parts.join(" · ")}</footer>`;
+}
+
+/**
  * Render `post` into `container`. Replaces all contents of `container`.
  */
 export function renderPost(post, container) {
@@ -73,6 +90,7 @@ export function renderPost(post, container) {
     <article class="post">
       ${renderPostHeader(post)}
       <div class="post-body">${parseBodyFor(post)}</div>
+      ${renderColophon(post)}
     </article>
   `;
 
@@ -310,6 +328,16 @@ function formatDate(d) {
     year: "numeric", month: "short", day: "numeric",
   });
   return { iso, human };
+}
+
+// Roman-numeral month in incunabula colophon style: "22.v.2026".
+const ROMAN_MONTHS = ["i","ii","iii","iv","v","vi","vii","viii","ix","x","xi","xii"];
+function formatColophonDate(d) {
+  if (!(d instanceof Date) || isNaN(d.getTime())) return "";
+  const day   = d.getDate();
+  const month = ROMAN_MONTHS[d.getMonth()] || "";
+  const year  = d.getFullYear();
+  return `${day}.${month}.${year}`;
 }
 
 function escapeHTML(s) {

@@ -12,7 +12,7 @@
 // path as the Index click). Click the commit button → bundle all pending
 // changes into one /api/commit-all call.
 
-import { getState, setState, subscribe, clearPending, upsertPost } from "../state.js";
+import { getState, setState, subscribe, clearPending, upsertPost, removePost } from "../state.js";
 import { commitAll }                                   from "../lib/api.js";
 import { parseFrontMatter }                            from "../../lib/front-matter.js";
 import { serializePost, folderNameFor }                from "../lib/serializer.js";
@@ -74,7 +74,11 @@ export async function triggerCommit() {
   }
 
   const snapshot = pendingChanges.slice();
-  const files    = snapshot.map(c => ({ filePath: c.filePath, content: c.content }));
+  // Only add/edit changes carry file content. Deletes contribute their own
+  // deletion entries below, so seed `files` from the content-bearing changes.
+  const files    = snapshot
+    .filter(c => c.action === "add" || c.action === "edit")
+    .map(c => ({ filePath: c.filePath, content: c.content }));
   // Snapshot the image queue at this moment too. Each entry becomes a
   // binary file in the commit; the queue is cleared on success below.
   const imageFiles = getQueueAsFiles();
@@ -87,8 +91,24 @@ export async function triggerCommit() {
   // we don't apply anything if the server rejects the commit.
   const postUpdates    = new Map();
   const historyUpdates = new Map();
+  // Ids removed by delete changes — cleared from the in-memory caches on a
+  // successful commit.
+  const deletedIds     = new Set();
 
   for (const change of snapshot) {
+    if (change.action === "delete") {
+      // Remove the post's whole folder (markdown + any images) and its history
+      // sidecar. `filePath` is the post's `post.md`; strip the tail to get the
+      // folder. Missing paths (e.g. a never-revised post has no sidecar) are
+      // tolerated by both commit backends.
+      const folder = change.filePath.replace(/\/post\.md$/, "");
+      files.push({ filePath: folder, deleted: true, isDir: true });
+      files.push({ filePath: historyPathFor(change.id), deleted: true });
+      deletedIds.add(change.id);
+      headers.push(`${change.id} [deleted]`);
+      continue;
+    }
+
     if (change.action === "add") {
       // Adds emit at the start version the author chose at save time
       // (0.1.0 or 1.0.0); fall back to whatever the content carries.
@@ -183,8 +203,9 @@ export async function triggerCommit() {
       message,
     });
 
-    const addsCount  = snapshot.filter(c => c.action === "add").length;
-    const editsCount = snapshot.filter(c => c.action === "edit").length;
+    const addsCount    = snapshot.filter(c => c.action === "add").length;
+    const editsCount   = snapshot.filter(c => c.action === "edit").length;
+    const deletesCount = snapshot.filter(c => c.action === "delete").length;
 
     if (result.ok) {
       sessionCommits.unshift({
@@ -192,6 +213,7 @@ export async function triggerCommit() {
         count:     snapshot.length,
         adds:      addsCount,
         edits:     editsCount,
+        deletes:   deletesCount,
         images:    imageCount,
         mode:      result.mode,
         ok:        true,
@@ -200,6 +222,7 @@ export async function triggerCommit() {
       // (without a page reload) sees the just-committed version and history.
       for (const post of postUpdates.values())     upsertPost(post);
       for (const [id, hist] of historyUpdates)     setHistory(id, hist);
+      for (const id of deletedIds)                 removePost(id);
       clearPending();
       clearQueue();
       const summary = `committed ${snapshot.length} change${snapshot.length > 1 ? "s" : ""}` + imageNote;
@@ -214,6 +237,7 @@ export async function triggerCommit() {
         count:     snapshot.length,
         adds:      addsCount,
         edits:     editsCount,
+        deletes:   deletesCount,
         images:    imageCount,
         ok:        false,
         error:     result.error,
@@ -358,9 +382,10 @@ function renderCommits() {
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function summarize(c) {
   const parts = [];
-  if (c.adds)   parts.push(`${c.adds} added`);
-  if (c.edits)  parts.push(`${c.edits} edited`);
-  if (c.images) parts.push(`${c.images} image${c.images > 1 ? "s" : ""}`);
+  if (c.adds)    parts.push(`${c.adds} added`);
+  if (c.edits)   parts.push(`${c.edits} edited`);
+  if (c.deletes) parts.push(`${c.deletes} deleted`);
+  if (c.images)  parts.push(`${c.images} image${c.images > 1 ? "s" : ""}`);
   if (parts.length === 0) parts.push(`${c.count || 0} change${c.count === 1 ? "" : "s"}`);
   return parts.join(", ");
 }

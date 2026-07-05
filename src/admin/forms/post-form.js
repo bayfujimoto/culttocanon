@@ -70,7 +70,10 @@ export function renderForm(container, post, { isNew = false } = {}) {
       <div class="form-header">
         <span class="form-title">${isNew ? "new piece" : escapeHTML(post.title || post.id)}</span>
         <span class="form-id">${escapeHTML(post.id || "—")}</span>
-        <button type="button" class="form-save" id="form-save">update&nbsp;<span class="form-save-hint">:update</span></button>
+        <div class="form-actions" id="form-actions">
+          <button type="button" class="form-save" id="form-save" title="stage / commit (:update)">update</button>
+          ${isNew ? "" : `<button type="button" class="form-delete" id="form-delete" title="delete this piece">delete</button>`}
+        </div>
       </div>
       <div class="form-fields">
         ${fields.map(f => renderField(f, _post)).join("")}
@@ -94,6 +97,8 @@ export function renderForm(container, post, { isNew = false } = {}) {
   });
   // Save button
   container.querySelector("#form-save").addEventListener("click", save);
+  // Delete button (existing posts only) — opens an inline slug-confirm gate.
+  wireDeleteButton();
 }
 
 /**
@@ -174,6 +179,71 @@ export function save() {
 }
 
 export function isDirty() { return _dirty; }
+
+// ── Delete flow ──────────────────────────────────────────────────────────────
+// Deleting is a staged, committed operation like a save — never an immediate
+// destructive act. The button swaps the header actions for a confirm gate that
+// requires the author to retype the post's slug (the familiar "type the name
+// to delete" pattern). On confirm we stage a `delete` change and hand off to
+// the Dispatch pane, where it rides the next commit alongside any other work.
+function wireDeleteButton() {
+  const actions = _container.querySelector("#form-actions");
+  const delBtn  = actions?.querySelector("#form-delete");
+  if (!actions || !delBtn) return;            // new posts have no delete button
+  delBtn.addEventListener("click", () => openDeleteConfirm(actions));
+}
+
+function openDeleteConfirm(actions) {
+  const slug = _post?.slug || "";
+  actions.innerHTML = `
+    <span class="form-delete-prompt">type <code>${escapeHTML(slug)}</code> to confirm</span>
+    <input type="text" id="form-delete-slug" class="form-delete-input"
+           placeholder="slug" autocomplete="off" autocapitalize="off"
+           spellcheck="false" aria-label="retype the slug to confirm deletion">
+    <button type="button" class="form-delete-go" id="form-delete-go" disabled>delete</button>
+    <button type="button" class="form-delete-cancel" id="form-delete-cancel">cancel</button>
+  `;
+  const input  = actions.querySelector("#form-delete-slug");
+  const goBtn  = actions.querySelector("#form-delete-go");
+  const cancel = actions.querySelector("#form-delete-cancel");
+
+  const matches = () => input.value.trim() === slug && slug !== "";
+  const sync    = () => { goBtn.disabled = !matches(); };
+  input.addEventListener("input", sync);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter")  { e.preventDefault(); if (matches()) confirmDelete(); }
+    if (e.key === "Escape") { e.preventDefault(); restoreActions(actions); }
+  });
+  goBtn.addEventListener("click", () => { if (matches()) confirmDelete(); });
+  cancel.addEventListener("click", () => restoreActions(actions));
+  input.focus();
+}
+
+// Restore the default update/delete buttons after a cancelled confirm.
+function restoreActions(actions) {
+  actions.innerHTML = `
+    <button type="button" class="form-save" id="form-save" title="stage / commit (:update)">update</button>
+    <button type="button" class="form-delete" id="form-delete" title="delete this piece">delete</button>
+  `;
+  actions.querySelector("#form-save").addEventListener("click", save);
+  actions.querySelector("#form-delete").addEventListener("click", () => openDeleteConfirm(actions));
+}
+
+// Stage a delete for the open post and return to the dashboard — the pending
+// deletion now lives in the Dispatch pane. filePathFor gives the post's
+// `post.md`; Dispatch derives the folder + history sidecar to remove from it
+// at commit time (see dispatch.js → triggerCommit, delete branch).
+function confirmDelete() {
+  const post = { id: _post.id, slug: _post.slug };
+  stageChange({
+    id:       post.id,
+    action:   "delete",
+    filePath: filePathFor(post),
+  });
+  _dirty = false;
+  flash(`staged delete ${post.id}`);
+  window.location.hash = "#/";
+}
 
 // ── Field builders ───────────────────────────────────────────────────────────
 function field(name, label, type, opts = {}) {

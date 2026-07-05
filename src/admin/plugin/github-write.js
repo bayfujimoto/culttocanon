@@ -15,17 +15,23 @@
 //   {
 //     files: [
 //       { filePath: "src/content/posts/.../post.md",  content: "---\n..." },                // text
-//       { filePath: "src/content/posts/.../foo.jpg",  content: "<base64>", binary: true }   // binary
+//       { filePath: "src/content/posts/.../foo.jpg",  content: "<base64>", binary: true },  // binary
+//       { filePath: "src/content/posts/ID-slug",      deleted: true, isDir: true },         // delete folder
+//       { filePath: "src/content/history/ID.json",    deleted: true }                       // delete file
 //     ],
 //     message: "add ESS-2026-005",
 //   }
+//
+// Deletion entries carry `deleted: true` and no content. `isDir: true` removes
+// the whole post folder (markdown + images) recursively; a plain file delete
+// removes just that path. Missing paths are tolerated (force).
 //
 // Binary file entries (typically image uploads from the body editor's paste
 // or drag handlers; see src/admin/lib/image-queue.js) carry the file's bytes
 // as a base64 string under `content` with `binary: true`. The middleware
 // decodes them to a Buffer before writing.
 
-import { mkdirSync, writeFileSync } from "fs";
+import { mkdirSync, writeFileSync, rmSync } from "fs";
 import { resolve, dirname } from "path";
 
 function readBody(req) {
@@ -70,12 +76,27 @@ export function githubWritePlugin() {
         }
 
         try {
+          const root    = process.cwd();
           const written = [];
-          for (const { filePath, content, binary } of files) {
-            if (!filePath || typeof content !== "string") {
+          const removed = [];
+          for (const { filePath, content, binary, deleted, isDir } of files) {
+            if (!filePath) throw new Error("Each file needs a filePath");
+            const abs = resolve(root, filePath);
+            // Never let a crafted path escape the repo working tree.
+            if (abs !== root && !abs.startsWith(root + "/")) {
+              throw new Error(`Refusing path outside repo: ${filePath}`);
+            }
+            if (deleted) {
+              // Delete a file, or an entire post folder (isDir → images too).
+              // `force` makes a missing path a no-op so deleting a post with
+              // no history sidecar still succeeds.
+              rmSync(abs, { recursive: !!isDir, force: true });
+              removed.push(filePath);
+              continue;
+            }
+            if (typeof content !== "string") {
               throw new Error("Each file needs filePath and a string content");
             }
-            const abs = resolve(process.cwd(), filePath);
             mkdirSync(dirname(abs), { recursive: true });
             if (binary) {
               // Base64-decoded bytes — used for image uploads from the
@@ -88,7 +109,7 @@ export function githubWritePlugin() {
             written.push(filePath);
           }
           res.writeHead(200);
-          res.end(JSON.stringify({ ok: true, mode: "local", written }));
+          res.end(JSON.stringify({ ok: true, mode: "local", written, removed }));
         } catch (e) {
           res.writeHead(500);
           res.end(JSON.stringify({ ok: false, error: e.message }));

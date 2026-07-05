@@ -297,7 +297,16 @@
   letter-spacing: 0.05em;
 }
 
-/* One phosphor button treatment, shared by Save and the slug-fill control. */
+/* The update + delete buttons sit together, right-aligned in the header. */
+.form-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+
+/* One phosphor button treatment, shared by Save and the slug-fill control.
+   Kept compact — just enough padding to register as a button. */
 .form-save,
 .form-slug-fill {
   background: transparent;
@@ -306,7 +315,7 @@
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   letter-spacing: 0.08em;
-  padding: 4px 10px;
+  padding: 3px 8px;
   cursor: pointer;
   border-radius: 1px;
   transition: all 0.08s steps(2, end);
@@ -319,9 +328,96 @@
   color: var(--fg);
 }
 
-.form-save-hint {
-  color: var(--identity-accent);
-  margin-left: 6px;
+/* Delete — quiet by default, reddening on hover and through the confirm gate. */
+.form-delete {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  color: var(--fg-dim);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  padding: 3px 8px;
+  cursor: pointer;
+  border-radius: 1px;
+  transition: all 0.08s steps(2, end);
+}
+
+.form-delete:hover {
+  background: var(--bg-elevated);
+  border-color: var(--accent-red);
+  color: var(--accent-red);
+}
+
+/* Inline "type the slug to confirm" gate that replaces the header actions. */
+.form-delete-prompt {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
+  color: var(--fg-dim);
+  white-space: nowrap;
+}
+
+.form-delete-prompt code {
+  color: var(--accent-red);
+}
+
+.form-delete-input {
+  width: 14ch;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  color: var(--fg);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  padding: 3px 6px;
+  border-radius: 1px;
+}
+
+.form-delete-input:focus {
+  outline: none;
+  border-color: var(--accent-red);
+}
+
+.form-delete-go {
+  background: transparent;
+  border: 1px solid var(--accent-red);
+  color: var(--accent-red);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  padding: 3px 8px;
+  cursor: pointer;
+  border-radius: 1px;
+  transition: all 0.08s steps(2, end);
+}
+
+.form-delete-go:hover:not(:disabled) {
+  background: var(--accent-red);
+  color: var(--bg);
+}
+
+.form-delete-go:disabled {
+  border-color: var(--border-strong);
+  color: var(--fg-dim);
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.form-delete-cancel {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  color: var(--fg-dim);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  padding: 3px 8px;
+  cursor: pointer;
+  border-radius: 1px;
+  transition: all 0.08s steps(2, end);
+}
+
+.form-delete-cancel:hover {
+  background: var(--bg-elevated);
+  color: var(--fg);
 }
 
 .form-fields {

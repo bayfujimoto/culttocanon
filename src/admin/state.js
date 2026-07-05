@@ -79,3 +79,12 @@ export function upsertPost(post) {
   else        next.push(post);
   setState({ allPosts: next });
 }
+
+/**
+ * Drop a post from the in-memory `allPosts` after a committed deletion, so the
+ * Index and any subsequent lookups stop resolving it without a page reload.
+ */
+export function removePost(id) {
+  const next = state.allPosts.filter(p => p.id !== id);
+  if (next.length !== state.allPosts.length) setState({ allPosts: next });
+}
