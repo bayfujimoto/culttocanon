@@ -10,49 +10,42 @@
   padding: 8px 0 24px;
   color: var(--fg-muted);
   font-family: var(--font-serif);
-  font-size: 1.0625rem;
+  font-size: 1rem;
   line-height: 1.6;
+  letter-spacing: 0.05em;
 }
 
 .post-header {
-  margin-bottom: 28px;
-  border-bottom: 1px solid var(--border-faint);
-  padding-bottom: 16px;
+  margin-bottom: 20px;
   font-family: var(--font-mono);
 }
 
 .post-kind-row {
   display: flex;
   gap: 10px;
+  align-items: baseline;
   font-size: var(--text-xs);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--fg-dim);
-  margin-bottom: 8px;
+  margin-top: 4px;
 }
 
 .post-kind {
   color: var(--identity-accent);
 }
 
-.post-status {
-  color: var(--fg-muted);
-  border: 1px solid var(--border-faint);
-  padding: 0 6px;
-  border-radius: 1px;
+.post-kind-date {
+  color: var(--fg-dim);
 }
-
-.post-status--draft     { color: var(--accent-yellow); border-color: var(--accent-yellow); }
-.post-status--evergreen { color: var(--accent-green);  border-color: var(--accent-green); }
-.post-status--abandoned { color: var(--fg-dim);        border-color: var(--border-faint); text-decoration: line-through; }
 
 .post-title {
   font-family: var(--font-serif);
-  font-size: 1.6rem;
+  font-size: 1.35rem;
   font-weight: 500;
   color: var(--fg);
   line-height: 1.25;
-  margin: 4px 0 10px;
+  margin: 0;
   letter-spacing: 0;
 }
 
@@ -61,28 +54,9 @@
   font-style: italic;
   font-size: 0.95rem;
   color: var(--fg-muted);
-  margin: 6px 0 12px;
+  margin: 10px 0 0;
   padding-left: 12px;
   border-left: 2px solid var(--border-faint);
-}
-
-.post-meta {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--fg-dim);
-  letter-spacing: 0.05em;
-  display: flex;
-  gap: 8px;
-  align-items: baseline;
-  flex-wrap: wrap;
-}
-
-.post-meta-sep {
-  color: var(--border);
-}
-
-.post-meta-id {
-  color: var(--fg-muted);
 }
 
 /* ── Body — markdown rendering ──────────────────────────────────────────── */
@@ -114,12 +88,13 @@
 }
 
 .post-body em {
+  font-family: var(--font-serif-italic);
   font-style: italic;
   color: var(--fg);
 }
 
 .post-body strong {
-  font-weight: 500;
+  font-weight: 600;
   color: var(--fg);
 }
 

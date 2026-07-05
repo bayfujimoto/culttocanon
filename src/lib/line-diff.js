@@ -1,12 +1,13 @@
-// ── Line / word diff ─────────────────────────────────────────────────────────
+// ── Line / sentence / word diff ──────────────────────────────────────────────
 // A minimal unified diff via longest-common-subsequence. No dependency:
 // the project ships two runtime deps (js-yaml, marked) and we keep it that way.
 //
-//   diffLines(oldText, newText) → [{ type, text }]   tokens = lines
-//   diffWords(oldText, newText) → [{ type, text }]   tokens = words + spaces
+//   diffLines(oldText, newText)     → [{ type, text }]   tokens = lines
+//   diffSentences(oldText, newText) → [{ type, text }]   tokens = sentences + spaces
+//   diffWords(oldText, newText)     → [{ type, text }]   tokens = words + spaces
 //     type: "ctx" (unchanged) | "del" (only in old) | "add" (only in new)
 //
-// Both run the same LCS over a token array; only the tokenizer differs.
+// All three run the same LCS over a token array; only the tokenizer differs.
 // Tokens common to both appear once as "ctx"; the deletions/insertions around
 // them fall out of the LCS backtrace. Good enough for prose-length pieces.
 
@@ -62,6 +63,29 @@ export function diffLines(oldText, newText) {
   const a = String(oldText ?? "").split("\n");
   const b = String(newText ?? "").split("\n");
   return lcsDiff(a, b);
+}
+
+/**
+ * Sentence-granularity diff. Tokens are alternating sentence / whitespace runs,
+ * so the segments re-join losslessly. The lookbehind keeps the terminating
+ * `.`/`!`/`?` attached to the sentence that produced it; the captured `(\s+)`
+ * is the inter-sentence whitespace as its own token.
+ *
+ * Over-splits on abbreviations like "Dr." or "e.g." — harmless: extra short
+ * "ctx" islands just mean more text renders neutral. Under-splitting would
+ * revert to paragraph-grain behavior, which this exists to escape.
+ * @param {string} oldText
+ * @param {string} newText
+ * @returns {{ type: "ctx"|"del"|"add", text: string }[]}
+ */
+export function diffSentences(oldText, newText) {
+  const a = tokenizeSentences(String(oldText ?? ""));
+  const b = tokenizeSentences(String(newText ?? ""));
+  return lcsDiff(a, b);
+}
+
+function tokenizeSentences(s) {
+  return s.split(/(?<=[.!?])(\s+)/).filter(t => t.length > 0);
 }
 
 /**

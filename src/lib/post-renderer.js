@@ -7,7 +7,7 @@
 // embeds yet. Phase 4 (iteration) can add what real pieces need.
 
 import { marked, Marked } from "marked";
-import { diffLines, diffWords } from "./line-diff.js";
+import { diffLines, diffSentences, diffWords } from "./line-diff.js";
 import { imageAttributesExtension } from "../markdown/image-attributes.js";
 import { makeImageRendererExtension }  from "../markdown/image-renderer.js";
 import { enhanceImages }               from "../runtime/ctc-image-reveal.js";
@@ -47,22 +47,15 @@ function renderPostHeader(post) {
   if (!post) return "";
 
   const created = formatDate(post.created);
-  const revised = post.revised ? formatDate(post.revised) : null;
 
   return `
     <header class="post-header">
+      <h1 class="post-title">${escapeHTML(post.title)}</h1>
       <div class="post-kind-row">
         <span class="post-kind">${escapeHTML(post.kind)}</span>
-        <span class="post-status post-status--${escapeAttr(post.status)}">${escapeHTML(post.status)}</span>
+        <time class="post-kind-date" datetime="${created.iso}">${created.human}</time>
       </div>
-      <h1 class="post-title">${escapeHTML(post.title)}</h1>
       ${post.epigraph ? `<p class="post-epigraph">${escapeHTML(post.epigraph)}</p>` : ""}
-      <div class="post-meta">
-        <span class="post-meta-id">${escapeHTML(post.id)}</span>
-        <span class="post-meta-sep">·</span>
-        <time class="post-meta-date" datetime="${created.iso}">${created.human}</time>
-        ${revised ? `<span class="post-meta-sep">·</span><time class="post-meta-revised" datetime="${revised.iso}">revised ${revised.human}</time>` : ""}
-      </div>
     </header>
   `;
 }
@@ -116,6 +109,16 @@ export function renderDiff(container, opts = {}) {
   const rows  = diffLines(oldBody || "", newBody || "");
   const SIGIL = { ctx: " ", add: "+", del: "-", mod: "~" };
 
+  // Threshold for "this pair is too dissimilar to word-diff cleanly":
+  // when >60% of word tokens are add/del, the pair likely describes
+  // unrelated content that happened to align positionally, so we fall back
+  // to plain red+green lines rather than rendering every-word-colored noise.
+  const NOISE_THRESHOLD = 0.6;
+  // When a del-run and add-run differ in length by more than this ratio,
+  // skip word-diff pairing entirely — pairing assumes the runs describe
+  // the same content edited; once sizes diverge, alignment is arbitrary.
+  const SIZE_MISMATCH_RATIO = 2;
+
   // Coalesce adjacent del/add runs so a del-run immediately followed by an
   // add-run renders as merged word-diff paragraphs instead of a full red
   // paragraph + full green paragraph. ctx rows and unpaired add/del runs
@@ -125,6 +128,65 @@ export function renderDiff(container, opts = {}) {
     `<span class="diff-sigil">${SIGIL[type] || " "}</span>` +
     `<span class="diff-text">${html || "&nbsp;"}</span>` +
     `</div>`;
+
+  // Render a paired paragraph using sentence-grain alignment, then word-grain
+  // inside each modified sentence. Unchanged sentences pass through neutral
+  // so a paragraph with one rewritten sentence among four reads as plain
+  // prose interrupted by one colored sentence — not whole-paragraph noise.
+  // Returns { html, totalTokens, changedTokens } so the caller can apply the
+  // paragraph-level noise guard against the aggregate word-token ratio.
+  function renderSentenceSegments(segs) {
+    const parts = [];
+    let totalTokens = 0;
+    let changedTokens = 0;
+    const wholeSentence = (cls, text) => {
+      // Treat a whole-sentence add/del as fully changed for the noise tally.
+      const toks = text.split(/(\s+)/).filter(t => t.length > 0);
+      totalTokens   += toks.length;
+      changedTokens += toks.length;
+      parts.push(`<span class="${cls}">${escapeHTML(text)}</span>`);
+    };
+    for (let i = 0; i < segs.length; ) {
+      const s = segs[i];
+      if (s.type === "ctx") {
+        const toks = s.text.split(/(\s+)/).filter(t => t.length > 0);
+        totalTokens += toks.length;
+        parts.push(escapeHTML(s.text));
+        i++;
+        continue;
+      }
+      const dSents = [];
+      while (i < segs.length && segs[i].type === "del") { dSents.push(segs[i].text); i++; }
+      const aSents = [];
+      while (i < segs.length && segs[i].type === "add") { aSents.push(segs[i].text); i++; }
+      if (dSents.length && aSents.length) {
+        const sp = Math.min(dSents.length, aSents.length);
+        for (let q = 0; q < sp; q++) {
+          const ws = diffWords(dSents[q], aSents[q]);
+          const changed = ws.reduce((n, w) => n + (w.type !== "ctx" ? 1 : 0), 0);
+          totalTokens   += ws.length;
+          changedTokens += changed;
+          const tooNoisy = changed / Math.max(ws.length, 1) > NOISE_THRESHOLD;
+          if (tooNoisy) {
+            parts.push(`<span class="diff-word--del">${escapeHTML(dSents[q])}</span>`);
+            parts.push(`<span class="diff-word--add">${escapeHTML(aSents[q])}</span>`);
+          } else {
+            parts.push(ws.map(w =>
+              w.type === "ctx"
+                ? escapeHTML(w.text)
+                : `<span class="diff-word--${w.type}">${escapeHTML(w.text)}</span>`
+            ).join(""));
+          }
+        }
+        for (let q = sp; q < dSents.length; q++) wholeSentence("diff-word--del", dSents[q]);
+        for (let q = sp; q < aSents.length; q++) wholeSentence("diff-word--add", aSents[q]);
+      } else {
+        for (const t of dSents) wholeSentence("diff-word--del", t);
+        for (const t of aSents) wholeSentence("diff-word--add", t);
+      }
+    }
+    return { html: parts.join(""), totalTokens, changedTokens };
+  }
 
   const out = [];
   for (let k = 0; k < rows.length; ) {
@@ -139,26 +201,45 @@ export function renderDiff(container, opts = {}) {
     // whole paragraph as all-add/all-del (the empty-old initial-publish case
     // splits to a single "" del). Emit them as plain rows and pair only the
     // content lines, so initial publishes stay clean +/- as before.
-    const rawDels = [];
-    while (k < rows.length && rows[k].type === "del") { rawDels.push(rows[k].text); k++; }
-    const rawAdds = [];
-    while (k < rows.length && rows[k].type === "add") { rawAdds.push(rows[k].text); k++; }
-    for (const t of rawDels) if (t === "") out.push(renderLine("del", "&nbsp;"));
-    for (const t of rawAdds) if (t === "") out.push(renderLine("add", "&nbsp;"));
-    const dels = rawDels.filter(t => t !== "");
-    const adds = rawAdds.filter(t => t !== "");
+    const dels = [];
+    while (k < rows.length && rows[k].type === "del") {
+      const t = rows[k].text;
+      if (t === "") out.push(renderLine("del", "&nbsp;"));
+      else dels.push(t);
+      k++;
+    }
+    const adds = [];
+    while (k < rows.length && rows[k].type === "add") {
+      const t = rows[k].text;
+      if (t === "") out.push(renderLine("add", "&nbsp;"));
+      else adds.push(t);
+      k++;
+    }
 
     if (dels.length && adds.length) {
-      // Modified block: pair lines by index, word-diff each pair into one
-      // merged line; surplus lines on the longer side fall back to plain.
+      const ratio = Math.max(dels.length, adds.length) / Math.min(dels.length, adds.length);
+      if (ratio > SIZE_MISMATCH_RATIO) {
+        for (const t of dels) out.push(renderLine("del", escapeHTML(t)));
+        for (const t of adds) out.push(renderLine("add", escapeHTML(t)));
+        continue;
+      }
+      // Modified block: pair paragraphs by index. Inside each pair, align
+      // sentences first so unchanged sentences pass through neutral and only
+      // modified ones get word-diff treatment. If the aggregate word-level
+      // change ratio for the paragraph still exceeds NOISE_THRESHOLD (i.e.
+      // sentence-grain didn't find enough shared structure to be useful),
+      // fall back to plain red+green for the whole pair.
       const paired = Math.min(dels.length, adds.length);
       for (let p = 0; p < paired; p++) {
-        const seg = diffWords(dels[p], adds[p]).map(w =>
-          w.type === "ctx"
-            ? escapeHTML(w.text)
-            : `<span class="diff-word--${w.type}">${escapeHTML(w.text)}</span>`
-        ).join("");
-        out.push(renderLine("mod", seg));
+        const sentSeg = diffSentences(dels[p], adds[p]);
+        const r = renderSentenceSegments(sentSeg);
+        const tooNoisy = r.changedTokens / Math.max(r.totalTokens, 1) > NOISE_THRESHOLD;
+        if (tooNoisy) {
+          out.push(renderLine("del", escapeHTML(dels[p])));
+          out.push(renderLine("add", escapeHTML(adds[p])));
+        } else {
+          out.push(renderLine("mod", r.html));
+        }
       }
       for (let p = paired; p < dels.length; p++) out.push(renderLine("del", escapeHTML(dels[p])));
       for (let p = paired; p < adds.length; p++) out.push(renderLine("add", escapeHTML(adds[p])));
@@ -170,11 +251,18 @@ export function renderDiff(container, opts = {}) {
   }
   const lines = out.join("");
 
+  // Overview stats: total line-level additions and deletions. Shown in the
+  // banner so the user can gauge change scope before diving in.
+  let addCount = 0, delCount = 0;
+  for (const r of rows) {
+    if (r.type === "add") addCount++;
+    else if (r.type === "del") delCount++;
+  }
+
   const id   = banner.id       || "";
   const ver  = banner.version  || "";
   const cat  = banner.category || "";
   const date = banner.date     || "";
-  const isCurrent = !!banner.isCurrent;
 
   const prevAttr = onPrev ? "" : "disabled";
   const nextAttr = onNext ? "" : "disabled";
@@ -193,12 +281,12 @@ export function renderDiff(container, opts = {}) {
           <span class="diff-banner-version">v${escapeHTML(ver)}</span>
           ${cat ? `<span class="diff-banner-category diff-banner-category--${escapeAttr(cat)}">[${escapeHTML(cat)}]</span>` : ""}
           ${date ? `<span class="diff-banner-sep">·</span><time class="diff-banner-date">${escapeHTML(date)}</time>` : ""}
+          <span class="diff-banner-sep">·</span>
+          <span class="diff-banner-stat"><span class="diff-banner-stat--add">+${addCount}</span> <span class="diff-banner-stat--del">−${delCount}</span></span>
         </span>
         <span class="diff-banner-nav-group">
           <button type="button" class="diff-banner-nav" data-nav="prev" ${prevAttr} title="older version">← prev</button>
-          ${isCurrent
-            ? `<button type="button" class="diff-banner-nav" data-nav="close" title="close diff view (Esc)">close diff view</button>`
-            : `<button type="button" class="diff-banner-nav" data-nav="current" title="back to current (Esc)">view current</button>`}
+          <button type="button" class="diff-banner-nav" data-nav="close" title="close diff (Esc)">close</button>
           <button type="button" class="diff-banner-nav" data-nav="next" ${nextAttr} title="newer version">next →</button>
         </span>
       </div>
@@ -208,9 +296,9 @@ export function renderDiff(container, opts = {}) {
   container.querySelectorAll(".diff-banner-nav").forEach(btn => {
     btn.addEventListener("click", () => {
       const nav = btn.dataset.nav;
-      if (nav === "prev"    && onPrev)  onPrev();
-      else if (nav === "next"    && onNext)  onNext();
-      else if ((nav === "current" || nav === "close") && onClose) onClose();
+      if (nav === "prev"  && onPrev)  onPrev();
+      else if (nav === "next"  && onNext)  onNext();
+      else if (nav === "close" && onClose) onClose();
     });
   });
 }
@@ -219,7 +307,7 @@ function formatDate(d) {
   if (!(d instanceof Date)) return { iso: "", human: "" };
   const iso   = d.toISOString().slice(0, 10);
   const human = d.toLocaleDateString("en-US", {
-    year: "numeric", month: "long", day: "numeric",
+    year: "numeric", month: "short", day: "numeric",
   });
   return { iso, human };
 }

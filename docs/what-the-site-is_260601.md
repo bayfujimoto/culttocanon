@@ -1,0 +1,29 @@
+---
+title: Cult to Canon — The Idea
+date: 2026-06-01
+status: synthesis
+---
+
+# Cult to Canon — The Idea
+
+A consolidation of the conceptual decisions reached across the planning conversations: what the project is about, what it refuses to be, and what it has not yet resolved. This is the argument, not the apparatus.
+
+## Origin
+
+The phrase arrived as an overheard remark before it was ever a project. By the account in the site thesis, the name "comes from an offhand comment from a podcast on the elevation of horror from YouTube to feature films" — the observation that work made by amateurs on a video platform was being taken up as legitimate cinema. The generative move was lexical. Two substitutions did the conceptual work. The first replaced *classic* with *canon*. A *classic* is a vague honorific, a work of acknowledged quality; a *canon* (from the Greek *kanōn*, a measuring rod) is an institution of selection and exclusion, and to invoke it is to speak of power — who decides, by what criteria, and at whose expense, since the same gesture that consecrates the canonical produces the apocryphal. The second substitution kept *to* rather than *and*: "Cult to Canon" names a vector, a movement, a thesis compressed into a preposition, where "Cult and Canon" would have named only a pairing. The decisive turn, though, is that the phrase is held at arm's length. It is, in the thesis's words, "an idea to investigate and critique, not an organizing framework." The project does not assert that cult objects become canonical; it asks whether that pipeline is real, where it holds, and where it is a story the culture tells itself.
+
+## The horror references
+
+The seed was the claim that internet horror is being elevated into cinema. Its emblem is the *Backrooms* — Kane Pixels' analog-horror web series, with its development into a feature film — joined by analog horror as an emergent genre, the SCP Foundation's collective mythology, and the older ARG lineage of *Marble Hornets* and *Petscop*. From there the inquiry widens from internet folk-horror into cult cinema proper: Italian giallo (Argento, Bava, Fulci); the folk-horror revival of *The Witch*, *Midsommar*, and *Lamb*; the "elevated horror" discourse and what it conceals; Cronenberg read as an unacknowledged philosopher; Żuławski's *Possession* (1981) as the period's most over-interpreted yet under-watched film; the migration of J- and K-horror from import curio to respectability; and horror television such as *The Haunting of Hill House* and *Channel Zero*. Horror is the natural first subject precisely because it is canon-formation in miniature: nearly every horror film now taken seriously was once disreputable, which makes the genre a working laboratory for the whole question of how the marginal becomes legitimate.
+
+## What the project is
+
+At its center the project is an inquiry into consecration — the slow process by which a work, an idea, or a sensibility moves from the margins of attention toward the center of inherited culture, and the contest over who has the authority to move it. It enters a long-standing argument: Bloom's claim that the canon records aesthetic strength, Guillory's that canonization is an institutional process shaped by the distribution of cultural resources, Bourdieu's that works are consecrated through the slow agreement of critics and intermediaries who confer legitimacy on what was once disreputable. To write under this banner is to take a position, however implicit, on how consecration occurs. The ambition is not a single verdict but an accumulation: by arguing for and against particular works — what has earned its place, what is overvalued, what cultivates a cult following on purpose and resists elevation — the body of writing gradually synthesizes into a personal statement about culture. Two things hold it together: the concept itself, and a single authorial voice. Not every piece needs to reach a verdict; the unifying discipline is sustained, honest attention rather than a fixed doctrine.
+
+## What it refuses
+
+It refuses the honorific vagueness of *classic* and the power-blindness that comes with it. It refuses to treat "cult to canon" as a settled truth — the pipeline is the object of critique, not the organizing dogma, and the project is as interested in where the movement fails, reverses, or never happens as in where it occurs. It refuses the premature system: the elaborate taxonomy built before there is enough material to organize, which warps the next thirty cases to fit the first three. It refuses the performance of erudition for its own sake, and the substitution of theory for the patient attention an object actually demands. And it refuses to mistake itself for a property — it is a writing practice, not a business, and so owes nothing to the metrics of reach.
+
+## What remains unresolved
+
+The founding definitions are still open, and deliberately so. Are cult and canon a sequence, an opposition, or two states that hold for the same object at once? Whose canon does the project operate inside, against, or alongside — and if alongside, what is its center of gravity? What is the unit of canonization now that the internet has multiplied the candidates: books, films, sentences, scenes, channels, accounts, whole oeuvres? Is the writer a critic, a curator, or both? Why is this work specific to this moment — what makes it both possible and necessary now? And, most disciplining of all, what would falsify the project; under what conditions would it be honest to close it? A further open question concerns the voice itself: whether to write as a single named sensibility or to multiply into personae, in the lineage of Pessoa's heteronyms, Kierkegaard's pseudonyms, and the hybrid-criticism collections of Barthes, Sebald, Dyer, and Nelson. These are not gaps to be patched but the questions the writing exists to work out.

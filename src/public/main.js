@@ -119,7 +119,11 @@ function marginaliaOptionsFor(post, activeVersion = null) {
     onSelect:        openPost,
     versions:        getHistoryById(post.id).versions,
     activeVersion,
-    onVersionSelect: (entry) => navigate(`/${post.slug}?v=${entry.key || entry.version}`),
+    onVersionSelect: (entry) => {
+      const key = entry.key || entry.version;
+      if (key === activeVersion) navigate(`/${post.slug}`);
+      else navigate(`/${post.slug}?v=${key}`);
+    },
   };
 }
 
@@ -193,7 +197,6 @@ function showCurrentDiff(post) {
       version:   post.version,
       category:  "current",
       date:      post.revised ? post.revised.toISOString().slice(0, 10) : "",
-      isCurrent: true,
     },
     onPrev:  newest ? () => navigate(`/${post.slug}?v=${newest.version}`) : null,
     onNext:  null,

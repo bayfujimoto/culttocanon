@@ -323,6 +323,10 @@
 .diff-banner-sep       { color: var(--fg-dim); }
 .diff-banner-date      { color: var(--fg-dim); }
 
+.diff-banner-stat       { font-variant-numeric: tabular-nums; }
+.diff-banner-stat--add  { color: var(--accent-green); }
+.diff-banner-stat--del  { color: var(--accent-red); }
+
 .diff-banner-category               { font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase; }
 .diff-banner-category--patch        { color: var(--fg-dim); }
 .diff-banner-category--minor        { color: var(--fg); }

@@ -1,0 +1,1439 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="public">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Read pane — typography mockup · cult to canon</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=Crimson+Pro:ital,wght@0,400..900;1,400..900&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400..700;1,8..60,400..700&family=STIX+Two+Text:ital,wght@0,400..700;1,400..700&family=Newsreader:ital,opsz,wght@0,6..72,400..800;1,6..72,400..800&family=Cormorant+Upright:wght@400;500;600;700&family=Spectral:ital,wght@0,400..800;1,400..800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <style>
+    /* ─────────────────────────────────────────────────────────────────────────
+       TOKENS — ported from src/styles/tokens.css (public theme only)
+       ───────────────────────────────────────────────────────────────────── */
+    :root {
+      --color-ink:    #1a1510;
+      --color-paper:  #f5f3ef;
+    }
+
+    [data-theme="public"] {
+      --bg:           #d5d8db;
+      --bg-bar:       var(--bg);
+      --bg-elevated:  #e2e5e8;
+      --bg-selected:  #b8bcc0;
+      --bg-backdrop:  #afb3b7;
+
+      --fg:        #1f2226;
+      --fg-muted:  #4d5158;
+      --fg-dim:    #7d8186;
+
+      --border:        #9ea2a6;
+      --border-strong: #6c7074;
+      --border-faint:  #b4b8bc;
+
+      --accent-yellow:  #b58900;
+      --accent-orange:  #cb4b16;
+      --accent-red:     #dc322f;
+      --accent-magenta: #d33682;
+      --accent-violet:  #6c71c4;
+      --accent-blue:    #268bd2;
+      --accent-cyan:    #2aa198;
+      --accent-green:   #859900;
+
+      --identity-accent: var(--fg);
+    }
+
+    :root {
+      --font-mono:  'JetBrains Mono', ui-monospace, "Cascadia Mono", "Fira Mono", monospace;
+      --font-serif: 'EB Garamond', Georgia, serif;
+
+      --text-xs:   0.8rem;
+      --text-sm:   0.9rem;
+      --text-base: 1.0rem;
+      --text-md:   1.1rem;
+      --text-lg:   1.2rem;
+      --text-xl:   1.4rem;
+
+      --space-1:  2px;  --space-2:  4px;  --space-3:  8px;  --space-4:  12px;
+      --space-5:  16px; --space-6:  24px; --space-7:  32px; --space-8:  48px;
+
+      --border-width: 1px;
+      --radius-sm:    2px;
+
+      --dur-fast: 0.1s; --dur-base: 0.15s; --dur-slow: 0.32s;
+      --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+
+      --topbar-h:    54px;
+      --statusbar-h: 48px;
+      --gutter-size: 6px;
+    }
+
+    /* ─────────────────────────────────────────────────────────────────────────
+       SHELL — ported from src/shell/shell.css
+       ───────────────────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { height: 100%; }
+    body {
+      min-height: 100%;
+      background: var(--bg-backdrop);
+      color: var(--fg-muted);
+      font-family: var(--font-mono);
+      font-size: var(--text-base);
+      line-height: 1.5;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    #app {
+      display: flex; flex-direction: column;
+      width: min(1080px, calc(100vw - 192px));
+      height: 80vh; min-height: 400px;
+      background: var(--bg);
+      border: 1px solid var(--border-strong);
+      overflow: hidden; position: relative;
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.18);
+    }
+
+    @keyframes shell-blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
+
+    .shell-topbar {
+      flex-shrink: 0; height: var(--topbar-h);
+      background: var(--bg-bar);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center;
+      padding: 0 20px; position: relative; z-index: 10;
+    }
+    .shell-identity { display: flex; flex-direction: column; line-height: 1.2; flex-shrink: 0; }
+    .shell-identity-name {
+      color: var(--identity-accent);
+      font-size: var(--text-sm); letter-spacing: 0.1em;
+    }
+    .shell-identity-sub {
+      color: var(--fg-muted);
+      font-size: 0.7rem; letter-spacing: 0.08em;
+    }
+    .shell-identity-cursor {
+      display: inline-block; width: 7px; height: 11px;
+      background: var(--identity-accent);
+      vertical-align: text-bottom; margin-left: 1px;
+      animation: shell-blink 1.1s step-end infinite;
+    }
+    .shell-topbar-breadcrumb {
+      display: flex; align-items: center; gap: 5px;
+      margin-left: auto;
+      font-size: var(--text-xs); color: var(--fg-muted);
+      overflow: hidden; white-space: nowrap;
+      letter-spacing: 0.04em; min-width: 0;
+    }
+
+    .shell-grid {
+      flex: 1; min-height: 0; min-width: 0;
+      display: grid;
+      grid-template-columns:
+        var(--pane-a-w, 20%)
+        var(--gutter-size)
+        minmax(0, 1fr)
+        var(--gutter-size)
+        var(--pane-c-w, 32%);
+      grid-template-rows: 1fr;
+      padding: 18px 14px 10px;
+      gap: 0;
+    }
+
+    .shell-pane {
+      position: relative;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      display: flex; flex-direction: column;
+      min-width: 0; min-height: 0;
+    }
+    .shell-pane.is-focused { border-color: var(--border-strong); }
+
+    .shell-pane-label {
+      position: absolute; top: -0.55em; left: 14px;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      letter-spacing: 0.08em;
+      color: var(--fg-muted);
+      background: var(--bg);
+      padding: 0 8px; line-height: 1;
+      white-space: nowrap; user-select: none;
+    }
+    .shell-pane-letter { color: var(--identity-accent); margin-right: 4px; }
+    .shell-pane-letter::before { content: '['; color: var(--fg-muted); margin-right: 1px; }
+    .shell-pane-letter::after  { content: ']'; color: var(--fg-muted); margin-left: 1px; }
+
+    .shell-pane-body { flex: 1; padding: 20px 16px 14px; overflow: auto; min-height: 0; }
+
+    .shell-gutter { position: relative; background: transparent; }
+    .shell-gutter::after {
+      content: '';
+      position: absolute;
+      top: 12px; bottom: 12px; left: 50%;
+      transform: translateX(-50%);
+      width: 1px;
+      background: var(--border-faint);
+      opacity: 0.6;
+    }
+
+    .shell-statusbar {
+      flex-shrink: 0; min-height: var(--statusbar-h);
+      border-top: 1px solid var(--border);
+      background: var(--bg-bar);
+      display: flex; flex-direction: column;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      position: relative; z-index: 10;
+    }
+    .shell-statusbar-row {
+      flex: 1; display: flex; align-items: center;
+      padding: 0 14px; gap: 14px;
+      overflow: hidden; white-space: nowrap;
+    }
+    .shell-statusbar-state { border-bottom: 1px solid var(--border-faint); }
+    .shell-status-state { color: var(--fg-muted); }
+    .shell-status-mode {
+      margin-left: auto; color: var(--accent-blue);
+      letter-spacing: 0.08em;
+    }
+    .shell-statusbar-keymap { color: var(--fg-muted); }
+    .shell-statusbar-keymap span { display: inline-flex; align-items: baseline; }
+    .shell-statusbar-keymap kbd {
+      font: inherit; color: var(--identity-accent);
+      background: transparent; margin-right: 5px;
+    }
+
+    /* ─────────────────────────────────────────────────────────────────────────
+       BROWSE — ported from public/styles.css + tree-view.css
+       ───────────────────────────────────────────────────────────────────── */
+    .shell-pane[data-pane="b"] .shell-pane-body { padding: 0; display: flex; flex-direction: column; }
+    .browse-content { flex: 1; overflow: auto; min-height: 0; }
+    .browse-toolbar {
+      display: flex; align-items: baseline; gap: 4px;
+      flex-shrink: 0; padding: 20px 16px 14px;
+      font-family: var(--font-mono); font-size: var(--text-xs);
+    }
+    .browse-toggle {
+      background: transparent; border: 1px solid var(--border-faint);
+      color: var(--fg-muted); font: inherit;
+      letter-spacing: 0.08em; padding: 2px 8px;
+      cursor: pointer; border-radius: 1px;
+      text-transform: lowercase;
+    }
+    .browse-toggle.is-active {
+      background: var(--bg-selected);
+      border-color: var(--border-strong);
+      color: var(--fg);
+    }
+    .browse-count { margin-left: auto; color: var(--fg-dim); letter-spacing: 0.04em; }
+
+    .tree {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      line-height: 1.45;
+      padding: 12px 0 10px;
+      list-style: none;
+    }
+    .tree-row {
+      display: flex; align-items: baseline;
+      padding: 2px 12px 2px 8px;
+      cursor: pointer; user-select: none;
+      color: var(--fg-muted);
+    }
+    .tree-row:hover { background: var(--bg-elevated); }
+    .tree-row.is-selected { background: var(--bg-selected); color: var(--fg); }
+    .tree-row.is-selected .tree-label { font-weight: 500; }
+    .tree-marker { width: 14px; flex-shrink: 0; text-align: center; color: var(--fg-dim); font-size: 0.78em; margin-right: 2px; }
+    .tree-item .tree-marker { color: var(--border-faint); }
+    .tree-group .tree-label { color: var(--fg); text-transform: uppercase; letter-spacing: 0.08em; }
+    .tree-label { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--fg); }
+    .tree-item .tree-label { color: var(--fg-muted); }
+    .tree-count, .tree-meta { margin-left: 10px; flex-shrink: 0; font-size: var(--text-xs); color: var(--fg-dim); letter-spacing: 0.04em; }
+
+    /* ─────────────────────────────────────────────────────────────────────────
+       POST — ported from src/styles/post-body.css, then parameterized
+       Every visual variable is exposed as a CSS custom property scoped to .post
+       so the settings panel can manipulate them live.
+       ───────────────────────────────────────────────────────────────────── */
+    .post {
+      /* live-controllable variables (with defaults matching live site) */
+      --read-font:           'EB Garamond', Georgia, serif;
+      --read-italic-font:    inherit;
+      --read-size:           1.0625rem;
+      --read-leading:        1.6;
+      --read-tracking:       0em;
+      --read-color:          var(--fg-muted);
+      --read-measure:        62ch;
+      --read-margin-l:       auto;
+      --read-margin-r:       auto;
+      --read-text-align:     left;
+      --read-para-indent:    0em;
+      --read-para-space:     1em;
+      --read-otf:            "kern" 1, "liga" 1;
+      --read-bold-weight:    500;
+      --read-link-color:     var(--accent-blue);
+      --read-link-offset:    1px;
+
+      max-width: var(--read-measure);
+      margin: 0 0 0 var(--read-margin-l);
+      margin-right: var(--read-margin-r);
+      padding: 8px 0 24px;
+      color: var(--read-color);
+      font-family: var(--read-font);
+      font-size: var(--read-size);
+      line-height: var(--read-leading);
+      letter-spacing: var(--read-tracking);
+      text-align: var(--read-text-align);
+      font-feature-settings: var(--read-otf);
+    }
+    .post.is-hanging { hanging-punctuation: first last; }
+
+    .post-header {
+      margin-bottom: 28px;
+      border-bottom: 1px solid var(--border-faint);
+      padding-bottom: 16px;
+      font-family: var(--font-mono);
+    }
+    .post-kind-row {
+      display: flex; gap: 10px;
+      font-size: var(--text-xs); letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--fg-dim);
+      margin-bottom: 8px;
+    }
+    .post-kind { color: var(--identity-accent); }
+    .post-status {
+      color: var(--fg-muted);
+      border: 1px solid var(--border-faint);
+      padding: 0 6px; border-radius: 1px;
+    }
+    .post-status--draft { color: var(--accent-yellow); border-color: var(--accent-yellow); }
+
+    .post-title {
+      font-family: var(--read-font);
+      font-size: 1.6rem; font-weight: 500;
+      color: var(--fg); line-height: 1.25;
+      margin: 4px 0 10px;
+    }
+    .post-epigraph {
+      font-family: var(--read-font);
+      font-style: italic;
+      font-size: 0.95rem;
+      color: var(--fg-muted);
+      margin: 6px 0 12px;
+      padding-left: 12px;
+      border-left: 2px solid var(--border-faint);
+    }
+    .post-meta {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-dim);
+      letter-spacing: 0.05em;
+      display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap;
+    }
+    .post-meta-sep { color: var(--border); }
+
+    .post-body > * + * { margin-top: var(--read-para-space); }
+    .post-body p { margin: 0; text-indent: 0; }
+    .post-body p + p { text-indent: var(--read-para-indent); }
+
+    .post-body h2 {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm); font-weight: 400;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--fg); margin-top: 2em;
+    }
+    .post-body h3 {
+      font-family: var(--read-font);
+      font-size: 1.15rem; font-weight: 500;
+      color: var(--fg); margin-top: 1.5em;
+    }
+    .post-body em {
+      font-style: italic;
+      font-family: var(--read-italic-font, inherit);
+      color: var(--fg);
+    }
+    .post-body strong {
+      font-weight: var(--read-bold-weight);
+      color: var(--fg);
+    }
+
+    .post-body a {
+      color: var(--read-link-color);
+      text-decoration: none;
+      border-bottom: 1px solid var(--read-link-color);
+      transition: opacity 0.1s;
+    }
+    .post-body a:hover { opacity: 0.7; }
+
+    .post-body blockquote {
+      margin: 1em 0;
+      padding-left: 16px;
+      border-left: 2px solid var(--border-faint);
+      color: var(--fg-muted);
+      font-style: italic;
+    }
+
+    .post-body ul, .post-body ol { padding-left: 1.5em; }
+    .post-body li + li { margin-top: 0.3em; }
+
+    .post-body code {
+      font-family: var(--font-mono); font-size: 0.92em;
+      background: var(--bg-elevated); padding: 0 4px;
+      border-radius: 2px; color: var(--fg);
+    }
+
+    /* ── Section break — parameterized via class on .post ── */
+    .post-break { margin: 2em auto; text-align: center; }
+    .post-break::before { color: var(--fg-muted); display: inline-block; }
+    .post--break-rule .post-break {
+      border-top: 1px solid var(--border-faint);
+      width: 50%; height: 0; margin: 2em auto;
+    }
+    .post--break-rule .post-break::before { content: ""; }
+    .post--break-asterism .post-break::before {
+      content: "⁂"; font-size: 1.1em;
+    }
+    .post--break-asterisks .post-break::before {
+      content: "* * *"; letter-spacing: 0.5em;
+      font-family: var(--read-font); font-size: 1.05em;
+    }
+    .post--break-fleuron .post-break::before {
+      content: "❦"; font-size: 1.3em; color: var(--fg-dim);
+    }
+    .post--break-pilcrow .post-break::before {
+      content: "¶"; font-family: var(--read-font);
+      font-style: italic; font-size: 1.2em; color: var(--fg-muted);
+    }
+    .post--break-three-dots .post-break::before {
+      content: "·  ·  ·"; letter-spacing: 0.5em; color: var(--fg-dim);
+    }
+    .post--break-none .post-break { display: none; }
+
+    /* ── Drop cap / raised initial ── */
+    .post-body > p:first-of-type::first-letter { font-weight: inherit; }
+    .post--dropcap-2line .post-body > p:first-of-type::first-letter,
+    .post--dropcap-3line .post-body > p:first-of-type::first-letter {
+      font-family: var(--read-dropcap-font, var(--read-font));
+      float: left;
+      font-weight: 500;
+      line-height: 0.82;
+      margin: 0.05em 0.08em 0 0;
+      color: var(--fg);
+    }
+    .post--dropcap-2line .post-body > p:first-of-type::first-letter { font-size: 2.6em; }
+    .post--dropcap-3line .post-body > p:first-of-type::first-letter { font-size: 3.6em; }
+    .post--dropcap-raised .post-body > p:first-of-type::first-letter {
+      font-family: var(--read-dropcap-font, var(--read-font));
+      font-size: 1.85em; line-height: 0.9;
+      color: var(--fg); font-weight: 500;
+      vertical-align: -0.05em;
+      margin-right: 0.02em;
+    }
+    .post--initial-italic .post-body > p:first-of-type::first-letter {
+      font-style: italic;
+      font-family: 'Cormorant Garamond', 'EB Garamond', serif;
+    }
+
+    /* ── First-paragraph small-caps opener ── */
+    .post-body > p:first-of-type .opener { font-variant-caps: normal; letter-spacing: inherit; }
+    .post--opener-words .post-body > p:first-of-type .opener {
+      font-variant-caps: small-caps;
+      letter-spacing: 0.08em; color: var(--fg);
+    }
+    .post--opener-line .post-body > p:first-of-type::first-line {
+      font-variant-caps: small-caps;
+      letter-spacing: 0.08em; color: var(--fg);
+    }
+
+    /* ── No-indent on first paragraph (classic literary convention) ── */
+    .post--no-indent-first .post-body > p:first-of-type { text-indent: 0; }
+
+    /* ── Epigraph treatments ── */
+    .post--epigraph-chancery .post-epigraph {
+      font-family: 'Cormorant Garamond', 'EB Garamond', serif;
+      font-style: italic;
+      font-size: 1.05rem;
+    }
+    .post--epigraph-smcaps .post-epigraph {
+      font-style: normal;
+      font-variant-caps: small-caps;
+      letter-spacing: 0.08em;
+      font-size: 0.9rem;
+    }
+    .post--epigraph-hidden .post-epigraph { display: none; }
+
+    /* ── Link underline styles ── */
+    .post--link-solid .post-body a {
+      border-bottom: 1px solid var(--read-link-color);
+      text-decoration: none;
+    }
+    .post--link-dotted .post-body a {
+      border-bottom: none;
+      text-decoration: underline dotted var(--read-link-color);
+      text-underline-offset: var(--read-link-offset);
+    }
+    .post--link-dashed .post-body a {
+      border-bottom: none;
+      text-decoration: underline dashed var(--read-link-color);
+      text-underline-offset: var(--read-link-offset);
+    }
+    .post--link-wavy .post-body a {
+      border-bottom: none;
+      text-decoration: underline wavy var(--read-link-color);
+      text-underline-offset: var(--read-link-offset);
+    }
+    .post--link-none .post-body a {
+      border-bottom: none; text-decoration: none;
+    }
+    .post--link-hover .post-body a {
+      border-bottom: none; text-decoration: none;
+    }
+    .post--link-hover .post-body a:hover {
+      text-decoration: underline dotted var(--read-link-color);
+      text-underline-offset: var(--read-link-offset);
+    }
+
+    /* ── Blockquote pulled (pull-quote style) ── */
+    .post--blockquote-pulled .post-body blockquote {
+      margin: 1.5em auto;
+      padding: 0 1em;
+      border-left: none;
+      border-top: 1px solid var(--border-faint);
+      border-bottom: 1px solid var(--border-faint);
+      padding-top: 0.6em; padding-bottom: 0.6em;
+      text-align: center;
+      font-size: 1.12em;
+      max-width: 90%;
+      color: var(--fg-muted);
+    }
+
+    /* ── Hanging punctuation visual hint (since browser support is partial) ── */
+    .post--hanging-punct .post-body { hanging-punctuation: first last; }
+    .post--hanging-punct .post-body p { text-indent: -0.32em; }
+    .post--hanging-punct.post--style-indent .post-body p + p,
+    .post--hanging-punct.post--style-hybrid .post-body p + p {
+      text-indent: calc(var(--read-para-indent) - 0.32em);
+    }
+
+    /* ── Paragraph style ── */
+    .post--style-block .post-body p + p { text-indent: 0; }
+    .post--style-block .post-body > * + * { margin-top: var(--read-para-space); }
+
+    .post--style-indent .post-body > * + * { margin-top: 0; }
+    .post--style-indent .post-body p + p { text-indent: var(--read-para-indent); }
+    .post--style-indent .post-body p { margin-top: 0; }
+    .post--style-indent .post-body h2,
+    .post--style-indent .post-body h3,
+    .post--style-indent .post-body blockquote,
+    .post--style-indent .post-body .post-break,
+    .post--style-indent .post-body ul,
+    .post--style-indent .post-body ol { margin-top: 1em; }
+
+    .post--style-hybrid .post-body p + p {
+      text-indent: var(--read-para-indent);
+      margin-top: calc(var(--read-para-space) * 0.35);
+    }
+
+    /* ── Colophon ── */
+    .post-colophon {
+      display: none;
+      text-align: center;
+      margin-top: 3.5em;
+      padding-top: 1em;
+      border-top: 1px solid var(--border-faint);
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--fg-dim);
+    }
+    .post--colophon-visible .post-colophon { display: block; }
+
+    /* ─────────────────────────────────────────────────────────────────────────
+       MARGINALIA SETTINGS PANEL
+       ───────────────────────────────────────────────────────────────────── */
+    .settings {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+    }
+
+    .settings-intro {
+      color: var(--fg-dim);
+      font-size: 10.5px;
+      letter-spacing: 0.04em;
+      margin-bottom: 18px;
+      line-height: 1.5;
+    }
+    .settings-intro em { color: var(--fg-muted); font-style: italic; }
+
+    .settings-section { margin-bottom: 22px; }
+    .settings-section-head {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      color: var(--fg);
+      font-size: 10.5px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid var(--border-faint);
+    }
+    .settings-section-head .ord {
+      color: var(--fg-dim);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .settings-row {
+      display: grid;
+      grid-template-columns: 9em 1fr;
+      gap: 8px;
+      padding: 5px 0;
+      align-items: center;
+      border-bottom: 1px dotted var(--border-faint);
+    }
+    .settings-row:last-child { border-bottom: none; }
+
+    .settings-label {
+      color: var(--fg-dim);
+      letter-spacing: 0.04em;
+      text-transform: lowercase;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .settings-value {
+      color: var(--fg);
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+      font-size: 10px;
+      letter-spacing: 0.04em;
+      margin-left: 6px;
+    }
+
+    .settings-control {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    /* select */
+    .settings-select {
+      flex: 1; min-width: 0;
+      appearance: none;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-faint);
+      color: var(--fg);
+      font: inherit;
+      padding: 2px 18px 2px 6px;
+      cursor: pointer;
+      border-radius: 1px;
+      background-image: linear-gradient(45deg, transparent 50%, var(--fg-muted) 50%),
+                        linear-gradient(135deg, var(--fg-muted) 50%, transparent 50%);
+      background-position: calc(100% - 10px) 50%, calc(100% - 6px) 50%;
+      background-size: 4px 4px;
+      background-repeat: no-repeat;
+    }
+    .settings-select:hover, .settings-select:focus {
+      border-color: var(--border-strong); outline: none;
+    }
+    .settings-select option { background: var(--bg-elevated); color: var(--fg); }
+    .settings-select option[data-state="fallback"]::before { content: "○ "; }
+
+    /* range */
+    .settings-range {
+      flex: 1;
+      appearance: none;
+      -webkit-appearance: none;
+      height: 2px;
+      background: var(--border-faint);
+      border-radius: 1px;
+      cursor: pointer;
+      min-width: 0;
+    }
+    .settings-range::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 10px; height: 10px;
+      background: var(--fg);
+      border-radius: 50%;
+      cursor: pointer;
+      margin-top: -4px;
+    }
+    .settings-range::-moz-range-thumb {
+      width: 10px; height: 10px;
+      background: var(--fg);
+      border: none; border-radius: 50%;
+      cursor: pointer;
+    }
+    .settings-range::-webkit-slider-runnable-track {
+      height: 2px; background: var(--border-faint);
+    }
+
+    /* segmented buttons */
+    .settings-seg {
+      display: inline-flex;
+      flex: 1; min-width: 0;
+      border: 1px solid var(--border-faint);
+      border-radius: 1px;
+      overflow: hidden;
+    }
+    .settings-seg button {
+      flex: 1;
+      appearance: none;
+      background: transparent;
+      border: none;
+      border-left: 1px solid var(--border-faint);
+      color: var(--fg-muted);
+      font: inherit;
+      padding: 2px 4px;
+      cursor: pointer;
+      text-transform: lowercase;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+      transition: background 0.08s;
+    }
+    .settings-seg button:first-child { border-left: none; }
+    .settings-seg button:hover { background: var(--bg-elevated); color: var(--fg); }
+    .settings-seg button.is-active {
+      background: var(--bg-selected);
+      color: var(--fg);
+    }
+
+    /* checkbox / toggle */
+    .settings-toggle {
+      appearance: none;
+      width: 28px; height: 14px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-faint);
+      border-radius: 1px;
+      position: relative;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .settings-toggle::after {
+      content: '';
+      position: absolute;
+      top: 1px; left: 1px;
+      width: 10px; height: 10px;
+      background: var(--fg-muted);
+      transition: transform 0.1s, background 0.1s;
+    }
+    .settings-toggle:checked {
+      background: var(--bg-selected);
+      border-color: var(--border-strong);
+    }
+    .settings-toggle:checked::after {
+      transform: translateX(14px);
+      background: var(--fg);
+    }
+
+    .settings-reset {
+      width: 100%;
+      appearance: none;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--fg);
+      font: inherit;
+      padding: 6px;
+      cursor: pointer;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-top: 4px;
+    }
+    .settings-reset:hover { background: var(--bg-elevated); border-color: var(--border-strong); }
+
+    .face-tag {
+      display: inline-block;
+      font-size: 9px;
+      letter-spacing: 0.06em;
+      padding: 0 3px;
+      margin-left: 4px;
+      color: var(--fg-dim);
+      border: 1px solid var(--border-faint);
+      border-radius: 1px;
+      text-transform: uppercase;
+    }
+    .face-tag--fallback { color: var(--accent-orange); border-color: var(--accent-orange); }
+    .face-tag--system   { color: var(--fg-dim); }
+
+    /* Right-align controls within a section (used for the OpenType toggles).
+       Re-flow the grid so the label can use full row width minus the toggle,
+       and lift its ellipsis so longer labels aren't truncated. */
+    .settings-section--align-right .settings-row     { grid-template-columns: 1fr auto; }
+    .settings-section--align-right .settings-control { justify-content: flex-end; }
+    .settings-section--align-right .settings-label   { overflow: visible; text-overflow: clip; }
+
+    .face-note {
+      grid-column: 1 / -1;
+      font-size: 10px;
+      color: var(--fg-dim);
+      padding: 4px 0 0;
+      letter-spacing: 0.04em;
+      line-height: 1.45;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+
+    <!-- ── TOPBAR ─────────────────────────────────────────────────────────── -->
+    <header class="shell-topbar">
+      <div class="shell-identity">
+        <span class="shell-identity-name">CULT_TO_CANON<span class="shell-identity-cursor"></span></span>
+        <span class="shell-identity-sub">v0.1.0</span>
+      </div>
+      <div class="shell-topbar-breadcrumb">
+        essay · ESS-2026-001 · on the slowness of canon
+      </div>
+    </header>
+
+    <!-- ── GRID ───────────────────────────────────────────────────────────── -->
+    <main class="shell-grid">
+
+      <!-- ── B / BROWSE ── -->
+      <section class="shell-pane" data-pane="b">
+        <span class="shell-pane-label"><span class="shell-pane-letter">b</span>browse</span>
+        <div class="shell-pane-body">
+          <div class="browse-toolbar">
+            <button class="browse-toggle is-active">tree</button>
+            <button class="browse-toggle">flat</button>
+            <span class="browse-count">11</span>
+          </div>
+          <div class="browse-content">
+            <ul class="tree">
+              <li class="tree-row tree-group" style="padding-left:8px"><span class="tree-marker">▾</span><span class="tree-label">essay</span><span class="tree-count">4</span></li>
+              <li class="tree-row tree-item is-selected" style="padding-left:22px"><span class="tree-marker">·</span><span class="tree-label">on the slowness of canon</span><span class="tree-meta">26·05</span></li>
+              <li class="tree-row tree-item" style="padding-left:22px"><span class="tree-marker">·</span><span class="tree-label">the digital garden, after</span><span class="tree-meta">26·04</span></li>
+              <li class="tree-row tree-item" style="padding-left:22px"><span class="tree-marker">·</span><span class="tree-label">paratext as wager</span><span class="tree-meta">26·03</span></li>
+              <li class="tree-row tree-item" style="padding-left:22px"><span class="tree-marker">·</span><span class="tree-label">why we still read kermode</span><span class="tree-meta">26·02</span></li>
+              <li class="tree-row tree-group" style="padding-left:8px"><span class="tree-marker">▾</span><span class="tree-label">fragment</span><span class="tree-count">3</span></li>
+              <li class="tree-row tree-item" style="padding-left:22px"><span class="tree-marker">·</span><span class="tree-label">on the asterism</span><span class="tree-meta">26·05</span></li>
+              <li class="tree-row tree-item" style="padding-left:22px"><span class="tree-marker">·</span><span class="tree-label">two kinds of margin</span><span class="tree-meta">26·04</span></li>
+              <li class="tree-row tree-item" style="padding-left:22px"><span class="tree-marker">·</span><span class="tree-label">note on calvino's six</span><span class="tree-meta">26·03</span></li>
+              <li class="tree-row tree-group" style="padding-left:8px"><span class="tree-marker">▾</span><span class="tree-label">note</span><span class="tree-count">2</span></li>
+              <li class="tree-row tree-item" style="padding-left:22px"><span class="tree-marker">·</span><span class="tree-label">re-reading as the only reading</span><span class="tree-meta">26·05</span></li>
+              <li class="tree-row tree-item" style="padding-left:22px"><span class="tree-marker">·</span><span class="tree-label">bringhurst, page 25</span><span class="tree-meta">26·04</span></li>
+              <li class="tree-row tree-group" style="padding-left:8px"><span class="tree-marker">▸</span><span class="tree-label">review</span><span class="tree-count">1</span></li>
+              <li class="tree-row tree-group" style="padding-left:8px"><span class="tree-marker">▸</span><span class="tree-label">fiction</span><span class="tree-count">1</span></li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <div class="shell-gutter shell-gutter-v"></div>
+
+      <!-- ── R / READ ── -->
+      <section class="shell-pane is-focused" data-pane="r">
+        <span class="shell-pane-label"><span class="shell-pane-letter">r</span>read</span>
+        <div class="shell-pane-body">
+          <article id="post" class="post post--style-block post--break-rule">
+            <header class="post-header">
+              <div class="post-kind-row">
+                <span class="post-kind">essay</span>
+                <span class="post-status post-status--draft">draft</span>
+              </div>
+              <h1 class="post-title">On the Slowness of Canon</h1>
+              <p class="post-epigraph">A classic is a book that has never finished saying what it has to say. <em>— Italo Calvino, </em><em>Why Read the Classics?</em><em>, 1981</em></p>
+              <div class="post-meta">
+                <span class="post-meta-id">ESS-2026-001</span>
+                <span class="post-meta-sep">·</span>
+                <span>v0.1.0</span>
+                <span class="post-meta-sep">·</span>
+                <span>2026-05-22</span>
+                <span class="post-meta-sep">·</span>
+                <span>register: academic</span>
+                <span class="post-meta-sep">·</span>
+                <span>confidence: likely</span>
+              </div>
+            </header>
+
+            <div class="post-body">
+              <p><span class="opener">A canon is not</span> a list but a tempo. The works it gathers are not simply the most admired or the most cited; they are the ones a reading culture has agreed to slow down for. The decision to read <em>Middlemarch</em> twice — to return to its slow movement of provincial moral life — is a different decision than the decision to read it once, and it is the second decision, repeated across generations, that confers canonical status. Frank Kermode argued in <a href="#">The Classic</a> (1975) that the survival of a work depends less on the verdict of any single age than on its capacity to <em>re-survive</em>: to be read again under conditions its first readers could not have anticipated. The cult precedes the canon, but it is the canon that converts cult into pace.</p>
+
+              <p>This site is built on a quiet wager: that the digital reading environment, having spent twenty-five years optimising for speed, has lost the techniques by which a reader is brought into a slower compact with a text. The page-view metric, the infinite scroll, the algorithmic timeline, the AMP-style stripped article — each is a successful intervention against the conditions under which canon-formation has historically taken place. <strong>Slow is not a virtue the medium has any reason to instil</strong>; it is a virtue the reader and the writer must conspire to reintroduce.</p>
+
+              <p>The conspiracy proceeds through paratext. Gérard Genette's <em>Seuils</em> (1987) — <em>Paratexts: Thresholds of Interpretation</em>, in Jane Lewin's English — defines paratext as everything <em>around</em> the text that the text needs to be read: title, preface, footnote, marginal gloss, running head, colophon, the publisher's binding. The paratext, Genette argues, is the <em>threshold</em> by which the reader is acclimated to the text's tempo before any reading proper begins.</p>
+
+              <blockquote>A book whose cover prepares the reader for slowness, whose typography signals an editorial care, whose marginalia invites annotation: this book has already begun its work before its first sentence is read.</blockquote>
+
+              <div class="post-break"></div>
+
+              <p>In this sense the redesign of the Read pane is not a typographic exercise but an editorial one. Each lever — leading, measure, indent, ornament — is a small editorial commitment, an instruction in the silent grammar that tells the reader <em>how</em> to be a reader for <em>this</em> page. The choice between block paragraphs and first-line indents is not an aesthetic preference; it is a stance on whether the paragraph is a <em>room</em> (block) or an <em>utterance</em> (indent). The choice between an <code>hr</code> rule and an asterism (⁂) is a stance on whether the section break is <em>infrastructure</em> or <em>ceremony</em>. The choice between a dotted underline and a solid blue underline is a stance on whether the link is a <em>footnote</em> or a <em>door</em>.</p>
+
+              <p>Robert Bringhurst, in <em>The Elements of Typographic Style</em>, writes that "typography exists to honour content." But honouring content is not a passive registration of its meaning; it is an <em>active argument</em> about the kind of reading the content deserves. Jost Hochuli, in <em>Detail in Typography</em>, is sharper: every page, he insists, is a polemic — every measure of leading, every choice of measure, every glyph of punctuation a stance on the reader the page expects to summon.</p>
+
+              <div class="post-break"></div>
+
+              <p>A working canon, then, is the residue of accumulated polemics. <em>The Anatomy of Melancholy</em> survives because Burton's marginal apparatus made the body of the book impossible to read at speed; the reader must descend to the gloss and resurface, again and again, until reading itself becomes the labyrinth Burton diagnosed. <em>Tristram Shandy</em> survives because Sterne's compositorial chaos — the black page, the marbled page, the squiggle that diagrams Toby's gesticulation — refuses to allow the reader to forget that <em>this is a book</em>, made of pages and ink, requiring attention. Both works are unreadable at the pace at which most contemporary websites expect to be read; both are eminently <em>re-readable</em>, which is the only kind of reading that builds canon.</p>
+
+              <p>The hypothesis, then, is testable. A page that slows the eye — by leading, by measure, by indent, by ornament, by the patient italic and the considered colophon — will outlast a page that does not. Whether this site succeeds in that hypothesis will be visible only in retrospect, and only to the readers who choose to return.</p>
+
+              <footer class="post-colophon">
+                ESS-2026-001 · v0.1.0 · 22.v.2026 · cult to canon
+              </footer>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <div class="shell-gutter shell-gutter-v"></div>
+
+      <!-- ── M / MARGINALIA — settings panel ── -->
+      <section class="shell-pane" data-pane="m">
+        <span class="shell-pane-label"><span class="shell-pane-letter">m</span>marginalia</span>
+        <div class="shell-pane-body">
+          <div class="settings">
+            <p class="settings-intro">
+              live modulators for the read pane. all changes apply to the rendered essay at left. <em>○</em> faces are system fallbacks; the rest load from google fonts.
+            </p>
+
+            <!-- ── 01 LETTERFORM ── -->
+            <div class="settings-section">
+              <div class="settings-section-head"><span class="ord">01</span> letterform · micro-pace</div>
+
+              <div class="settings-row">
+                <label class="settings-label">typeface</label>
+                <div class="settings-control">
+                  <select class="settings-select" data-modulator="font">
+                    <optgroup label="loaded">
+                      <option value="'EB Garamond', Georgia, serif" selected>EB Garamond — current</option>
+                      <option value="'Crimson Pro', Georgia, serif">Crimson Pro</option>
+                      <option value="'Cormorant Garamond', Georgia, serif">Cormorant Garamond</option>
+                      <option value="'Source Serif 4', Georgia, serif">Source Serif 4</option>
+                      <option value="'STIX Two Text', Georgia, serif">STIX Two Text — academic</option>
+                      <option value="'Newsreader', Georgia, serif">Newsreader</option>
+                      <option value="'Spectral', Georgia, serif">Spectral</option>
+                    </optgroup>
+                    <optgroup label="system / fallback ○">
+                      <option value="Sabon, 'EB Garamond', serif">Sabon ○</option>
+                      <option value="Plantin, 'EB Garamond', serif">Plantin ○</option>
+                      <option value="Centaur, 'EB Garamond', serif">Centaur ○</option>
+                      <option value="Bembo, 'EB Garamond', serif">Bembo ○</option>
+                      <option value="'Adobe Caslon Pro', 'EB Garamond', serif">Adobe Caslon ○</option>
+                      <option value="Georgia, serif">Georgia (system)</option>
+                      <option value="'Iowan Old Style', Georgia, serif">Iowan Old Style ○</option>
+                      <option value="Palatino, 'EB Garamond', serif">Palatino (system)</option>
+                    </optgroup>
+                  </select>
+                </div>
+              </div>
+
+              <div class="settings-row">
+                <label class="settings-label">italic source</label>
+                <div class="settings-control">
+                  <select class="settings-select" data-modulator="italic">
+                    <option value="inherit" selected>same as body</option>
+                    <option value="'Cormorant Garamond', italic">Cormorant — chancery</option>
+                    <option value="'Cormorant Upright', italic">Cormorant Upright</option>
+                    <option value="'Crimson Pro', italic">Crimson Pro italic</option>
+                    <option value="'STIX Two Text', italic">STIX Two italic</option>
+                    <option value="'Newsreader', italic">Newsreader italic</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="settings-row">
+                <label class="settings-label">size <span class="settings-value" data-display="size">17.0</span></label>
+                <div class="settings-control">
+                  <input type="range" class="settings-range" data-modulator="size" min="14" max="22" step="0.25" value="17">
+                </div>
+              </div>
+
+              <div class="settings-row">
+                <label class="settings-label">tracking <span class="settings-value" data-display="tracking">0</span></label>
+                <div class="settings-control">
+                  <input type="range" class="settings-range" data-modulator="tracking" min="-20" max="40" step="1" value="0">
+                </div>
+              </div>
+
+              <div class="settings-row">
+                <label class="settings-label">color</label>
+                <div class="settings-control">
+                  <div class="settings-seg" data-modulator="color">
+                    <button data-value="var(--fg)">full</button>
+                    <button data-value="var(--fg-muted)" class="is-active">muted</button>
+                    <button data-value="var(--fg-dim)">dim</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="settings-row">
+                <label class="settings-label">bold weight <span class="settings-value" data-display="bold">500</span></label>
+                <div class="settings-control">
+                  <input type="range" class="settings-range" data-modulator="bold" min="400" max="800" step="100" value="500">
+                </div>
+              </div>
+            </div>
+
+            <!-- ── 02 OPENTYPE ── -->
+            <div class="settings-section settings-section--align-right">
+              <div class="settings-section-head"><span class="ord">02</span> opentype features</div>
+
+              <div class="settings-row">
+                <label class="settings-label">ligatures (liga)</label>
+                <div class="settings-control"><input type="checkbox" class="settings-toggle" data-modulator="liga" checked></div>
+              </div>
+              <div class="settings-row">
+                <label class="settings-label">discretionary (dlig)</label>
+                <div class="settings-control"><input type="checkbox" class="settings-toggle" data-modulator="dlig"></div>
+              </div>
+              <div class="settings-row">
+                <label class="settings-label">oldstyle figs (onum)</label>
+                <div class="settings-control"><input type="checkbox" class="settings-toggle" data-modulator="onum"></div>
+              </div>
+              <div class="settings-row">
+                <label class="settings-label">small caps (smcp)</label>
+                <div class="settings-control"><input type="checkbox" class="settings-toggle" data-modulator="smcp"></div>
+              </div>
+              <div class="settings-row">
+                <label class="settings-label">historical (hist)</label>
+                <div class="settings-control"><input type="checkbox" class="settings-toggle" data-modulator="hist"></div>
+              </div>
+              <div class="settings-row">
+                <label class="settings-label">contextual (calt)</label>
+                <div class="settings-control"><input type="checkbox" class="settings-toggle" data-modulator="calt" checked></div>
+              </div>
+            </div>
+
+            <!-- ── 03 VERTICAL RHYTHM ── -->
+            <div class="settings-section">
+              <div class="settings-section-head"><span class="ord">03</span> vertical rhythm</div>
+
+              <div class="settings-row">
+                <label class="settings-label">leading <span class="settings-value" data-display="leading">1.60</span></label>
+                <div class="settings-control">
+                  <input type="range" class="settings-range" data-modulator="leading" min="1.20" max="2.10" step="0.05" value="1.60">
+                </div>
+              </div>
+
+              <div class="settings-row">
+                <label class="settings-label">paragraph form</label>
+                <div class="settings-control">
+                  <div class="settings-seg" data-modulator="para-style">
+                    <button data-value="block" class="is-active">block</button>
+                    <button data-value="indent">indent</button>
+                    <button data-value="hybrid">hybrid</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="settings-row">
+                <label class="settings-label">indent <span class="settings-value" data-display="indent">1.0em</span></label>
+                <div class="settings-control">
+                  <input type="range" class="settings-range" data-modulator="indent" min="0" max="3" step="0.1" value="1.0">
+                </div>
+              </div>
+
+              <div class="settings-row">
+                <label class="settings-label">paragraph gap <span class="settings-value" data-display="gap">1.0em</span></label>
+                <div class="settings-control">
+                  <input type="range" class="settings-range" data-modulator="gap" min="0" max="2.5" step="0.05" value="1.0">
+                </div>
+              </div>
+
+              <div class="settings-row">
+                <label class="settings-label">no-indent first ¶</label>
+                <div class="settings-control"><input type="checkbox" class="settings-toggle" data-modulator="no-indent-first"></div>
+              </div>
+            </div>
+
+            <!-- ── 04 MEASURE ── -->
+            <div class="settings-section">
+              <div class="settings-section-head"><span class="ord">04</span> measure · column</div>
+
+              <div class="settings-row">
+                <label class="settings-label">width <span class="settings-value" data-display="measure">62ch</span></label>
+                <div class="settings-control">
+                  <input type="range" class="settings-range" data-modulator="measure" min="36" max="90" step="1" value="62">
+                </div>
+              </div>
+
+              <div class="settings-row">
+                <label class="settings-label">column position</label>
+                <div class="settings-control">
+                  <div class="settings-seg" data-modulator="margin">
+                    <button data-value="center" class="is-active">center</button>
+                    <button data-value="left">left</button>
+                    <button data-value="offset-left">offset L</button>
+                    <button data-value="offset-right">offset R</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="settings-row">
+                <label class="settings-label">alignment</label>
+                <div class="settings-control">
+                  <div class="settings-seg" data-modulator="align">
+                    <button data-value="left" class="is-active">ragged</button>
+                    <button data-value="justify">justified</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="settings-row">
+                <label class="settings-label">hanging punctuation</label>
+                <div class="settings-control"><input type="checkbox" class="settings-toggle" data-modulator="hanging"></div>
+              </div>
+            </div>
+
+            <!-- ── 05 THRESHOLDS ── -->
+            <div class="settings-section">
+              <div class="settings-section-head"><span class="ord">05</span> threshold moments</div>
+
+              <div class="settings-row">
+                <label class="settings-label">section break</label>
+                <div class="settings-control">
+                  <select class="settings-select" data-modulator="break">
+                    <option value="rule" selected>rule — 50% line (current)</option>
+                    <option value="asterism">asterism — ⁂</option>
+                    <option value="asterisks">three asterisks — * * *</option>
+                    <option value="three-dots">three dots — · · ·</option>
+                    <option value="fleuron">fleuron — ❦</option>
+                    <option value="pilcrow">italic pilcrow — ¶</option>
+                    <option value="none">none — whitespace only</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="settings-row">
+                <label class="settings-label">drop cap / initial</label>
+                <div class="settings-control">
+                  <select class="settings-select" data-modulator="dropcap">
+                    <option value="none" selected>off</option>
+                    <option value="raised">raised initial</option>
+                    <option value="2line">drop cap — 2-line</option>
+                    <option value="3line">drop cap — 3-line</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="settings-row">
+                <label class="settings-label">dropcap italic</label>
+                <div class="settings-control"><input type="checkbox" class="settings-toggle" data-modulator="dropcap-italic"></div>
+              </div>
+
+              <div class="settings-row">
+                <label class="settings-label">opener small caps</label>
+                <div class="settings-control">
+                  <select class="settings-select" data-modulator="opener">
+                    <option value="none" selected>off</option>
+                    <option value="words">first three words</option>
+                    <option value="line">first line</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="settings-row">
+                <label class="settings-label">epigraph</label>
+                <div class="settings-control">
+                  <select class="settings-select" data-modulator="epigraph">
+                    <option value="default" selected>serif italic (current)</option>
+                    <option value="chancery">chancery — Cormorant italic</option>
+                    <option value="smcaps">small caps</option>
+                    <option value="hidden">hidden</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="settings-row">
+                <label class="settings-label">blockquote</label>
+                <div class="settings-control">
+                  <div class="settings-seg" data-modulator="blockquote">
+                    <button data-value="standard" class="is-active">standard</button>
+                    <button data-value="pulled">pulled</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="settings-row">
+                <label class="settings-label">colophon</label>
+                <div class="settings-control"><input type="checkbox" class="settings-toggle" data-modulator="colophon"></div>
+              </div>
+            </div>
+
+            <!-- ── 06 LINKS & EMPHASIS ── -->
+            <div class="settings-section">
+              <div class="settings-section-head"><span class="ord">06</span> links · emphasis</div>
+
+              <div class="settings-row">
+                <label class="settings-label">underline style</label>
+                <div class="settings-control">
+                  <select class="settings-select" data-modulator="link-style">
+                    <option value="solid" selected>solid (current)</option>
+                    <option value="dotted">dotted</option>
+                    <option value="dashed">dashed</option>
+                    <option value="wavy">wavy</option>
+                    <option value="hover">hover only</option>
+                    <option value="none">none</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="settings-row">
+                <label class="settings-label">link offset <span class="settings-value" data-display="link-offset">1px</span></label>
+                <div class="settings-control">
+                  <input type="range" class="settings-range" data-modulator="link-offset" min="0" max="6" step="0.5" value="1">
+                </div>
+              </div>
+
+              <div class="settings-row">
+                <label class="settings-label">link color</label>
+                <div class="settings-control">
+                  <div class="settings-seg" data-modulator="link-color">
+                    <button data-value="var(--accent-blue)" class="is-active">blue</button>
+                    <button data-value="var(--fg)">ink</button>
+                    <button data-value="var(--fg-muted)">muted</button>
+                    <button data-value="var(--accent-orange)">orange</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ── reset ── -->
+            <button class="settings-reset" id="reset-all">reset to current site</button>
+
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- ── STATUSBAR ──────────────────────────────────────────────────────── -->
+    <footer class="shell-statusbar">
+      <div class="shell-statusbar-row shell-statusbar-state">
+        <span class="shell-status-state">read · typography preview · live</span>
+        <span class="shell-status-mode shell-status-mode--normal">NORMAL</span>
+      </div>
+      <div class="shell-statusbar-row shell-statusbar-keymap">
+        <span><kbd>b/r/m</kbd> pane</span>
+        <span><kbd>j/k</kbd> scroll</span>
+        <span><kbd>:reset</kbd> defaults</span>
+        <span><kbd>?</kbd> help</span>
+      </div>
+    </footer>
+
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      const post = document.getElementById('post');
+
+      // ── helpers ──────────────────────────────────────────────────────────
+      function setVar(name, value) {
+        post.style.setProperty(name, value);
+      }
+      function setDisplay(key, value) {
+        const el = document.querySelector(`[data-display="${key}"]`);
+        if (el) el.textContent = value;
+      }
+      function setClassGroup(prefix, value) {
+        // Remove any class starting with prefix, then add prefix+value (if not 'none')
+        const toRemove = [...post.classList].filter(c => c.startsWith(prefix));
+        toRemove.forEach(c => post.classList.remove(c));
+        if (value && value !== 'none') post.classList.add(prefix + value);
+      }
+      function setToggleClass(cls, on) {
+        post.classList.toggle(cls, on);
+      }
+
+      // ── OpenType feature aggregation ────────────────────────────────────
+      const otf = { kern: 1, liga: 1, dlig: 0, onum: 0, smcp: 0, hist: 0, calt: 1 };
+      function rebuildOtf() {
+        const parts = Object.entries(otf).map(([k, v]) => `"${k}" ${v}`);
+        setVar('--read-otf', parts.join(', '));
+      }
+
+      // ── select controls ─────────────────────────────────────────────────
+      document.querySelectorAll('.settings-select').forEach(sel => {
+        sel.addEventListener('change', e => {
+          const mod = sel.dataset.modulator;
+          const v = sel.value;
+          switch (mod) {
+            case 'font':       setVar('--read-font', v); break;
+            case 'italic':
+              if (v === 'inherit') setVar('--read-italic-font', 'inherit');
+              else {
+                const family = v.replace(", italic", "");
+                setVar('--read-italic-font', family);
+              }
+              break;
+            case 'break':      setClassGroup('post--break-', v); break;
+            case 'dropcap':    setClassGroup('post--dropcap-', v); break;
+            case 'opener':     setClassGroup('post--opener-', v); break;
+            case 'epigraph':
+              setClassGroup('post--epigraph-', v === 'default' ? 'none' : v);
+              break;
+            case 'link-style': setClassGroup('post--link-', v); break;
+          }
+        });
+      });
+
+      // ── range controls ──────────────────────────────────────────────────
+      document.querySelectorAll('.settings-range').forEach(rg => {
+        rg.addEventListener('input', e => {
+          const mod = rg.dataset.modulator;
+          const v = parseFloat(rg.value);
+          switch (mod) {
+            case 'size':
+              setVar('--read-size', v + 'px');
+              setDisplay('size', v.toFixed(1));
+              break;
+            case 'tracking':
+              setVar('--read-tracking', (v / 1000) + 'em');
+              setDisplay('tracking', (v > 0 ? '+' : '') + v);
+              break;
+            case 'leading':
+              setVar('--read-leading', v);
+              setDisplay('leading', v.toFixed(2));
+              break;
+            case 'indent':
+              setVar('--read-para-indent', v + 'em');
+              setDisplay('indent', v.toFixed(1) + 'em');
+              break;
+            case 'gap':
+              setVar('--read-para-space', v + 'em');
+              setDisplay('gap', v.toFixed(2) + 'em');
+              break;
+            case 'measure':
+              setVar('--read-measure', v + 'ch');
+              setDisplay('measure', v + 'ch');
+              break;
+            case 'bold':
+              setVar('--read-bold-weight', v);
+              setDisplay('bold', v);
+              break;
+            case 'link-offset':
+              setVar('--read-link-offset', v + 'px');
+              setDisplay('link-offset', v + 'px');
+              break;
+          }
+        });
+      });
+
+      // ── segmented controls ──────────────────────────────────────────────
+      document.querySelectorAll('.settings-seg').forEach(seg => {
+        seg.querySelectorAll('button').forEach(btn => {
+          btn.addEventListener('click', () => {
+            seg.querySelectorAll('button').forEach(b => b.classList.remove('is-active'));
+            btn.classList.add('is-active');
+            const mod = seg.dataset.modulator;
+            const v = btn.dataset.value;
+            switch (mod) {
+              case 'color':
+                setVar('--read-color', v);
+                break;
+              case 'para-style':
+                setClassGroup('post--style-', v);
+                break;
+              case 'margin':
+                if (v === 'center')      { setVar('--read-margin-l', 'auto'); setVar('--read-margin-r', 'auto'); }
+                if (v === 'left')        { setVar('--read-margin-l', '0');    setVar('--read-margin-r', 'auto'); }
+                if (v === 'offset-left') { setVar('--read-margin-l', '2.5em');setVar('--read-margin-r', 'auto'); }
+                if (v === 'offset-right'){ setVar('--read-margin-l', 'auto'); setVar('--read-margin-r', '2.5em'); }
+                break;
+              case 'align':
+                setVar('--read-text-align', v);
+                break;
+              case 'blockquote':
+                setToggleClass('post--blockquote-pulled', v === 'pulled');
+                break;
+              case 'link-color':
+                setVar('--read-link-color', v);
+                break;
+            }
+          });
+        });
+      });
+
+      // ── toggles ─────────────────────────────────────────────────────────
+      document.querySelectorAll('.settings-toggle').forEach(t => {
+        t.addEventListener('change', () => {
+          const mod = t.dataset.modulator;
+          const on = t.checked;
+          switch (mod) {
+            case 'liga': otf.liga = on ? 1 : 0; rebuildOtf(); break;
+            case 'dlig': otf.dlig = on ? 1 : 0; rebuildOtf(); break;
+            case 'onum': otf.onum = on ? 1 : 0; rebuildOtf(); break;
+            case 'smcp': otf.smcp = on ? 1 : 0; rebuildOtf(); break;
+            case 'hist': otf.hist = on ? 1 : 0; rebuildOtf(); break;
+            case 'calt': otf.calt = on ? 1 : 0; rebuildOtf(); break;
+            case 'hanging':         setToggleClass('post--hanging-punct', on); break;
+            case 'no-indent-first': setToggleClass('post--no-indent-first', on); break;
+            case 'colophon':        setToggleClass('post--colophon-visible', on); break;
+            case 'dropcap-italic':  setToggleClass('post--initial-italic', on); break;
+          }
+        });
+      });
+
+      // ── reset ───────────────────────────────────────────────────────────
+      document.getElementById('reset-all').addEventListener('click', () => {
+        // Remove all post-- classes except the structural defaults
+        [...post.classList].forEach(c => {
+          if (c.startsWith('post--')) post.classList.remove(c);
+        });
+        post.classList.add('post--style-block', 'post--break-rule');
+
+        // Clear inline custom properties
+        post.removeAttribute('style');
+
+        // Reset OTF state
+        Object.assign(otf, { kern: 1, liga: 1, dlig: 0, onum: 0, smcp: 0, hist: 0, calt: 1 });
+
+        // Reset every control
+        document.querySelectorAll('.settings-select').forEach(s => {
+          s.selectedIndex = 0;
+        });
+        const rangeDefaults = {
+          size: 17, tracking: 0, leading: 1.6,
+          indent: 1.0, gap: 1.0, measure: 62,
+          bold: 500, 'link-offset': 1
+        };
+        document.querySelectorAll('.settings-range').forEach(r => {
+          r.value = rangeDefaults[r.dataset.modulator];
+        });
+        // Rebuild displays
+        setDisplay('size', '17.0');
+        setDisplay('tracking', '0');
+        setDisplay('leading', '1.60');
+        setDisplay('indent', '1.0em');
+        setDisplay('gap', '1.00em');
+        setDisplay('measure', '62ch');
+        setDisplay('bold', '500');
+        setDisplay('link-offset', '1px');
+
+        // Reset segmented controls
+        const segDefaults = {
+          'color': 'var(--fg-muted)',
+          'para-style': 'block',
+          'margin': 'center',
+          'align': 'left',
+          'blockquote': 'standard',
+          'link-color': 'var(--accent-blue)'
+        };
+        document.querySelectorAll('.settings-seg').forEach(seg => {
+          const mod = seg.dataset.modulator;
+          const target = segDefaults[mod];
+          seg.querySelectorAll('button').forEach(b => {
+            b.classList.toggle('is-active', b.dataset.value === target);
+          });
+        });
+
+        // Reset toggles
+        document.querySelectorAll('.settings-toggle').forEach(t => {
+          const mod = t.dataset.modulator;
+          t.checked = (mod === 'liga' || mod === 'calt');
+        });
+      });
+
+      // ── initial sync of OTF (in case anything changes defaults) ─────────
+      rebuildOtf();
+    })();
+  </script>
+</body>
+</html>

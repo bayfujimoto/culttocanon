@@ -302,10 +302,28 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: 'EB Garamond';
+  src: url('/fonts/EBGaramond-400-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Crimson Pro italic — used for body emphasis (.post-body em) only. */
+@font-face {
+  font-family: 'Crimson Pro';
+  src: url('/fonts/CrimsonPro-400-Italic.woff2') format('woff2');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
 /* ── Typography & spacing & layout — shared across both themes ── */
 :root {
-  --font-mono:  'Commit Mono', ui-monospace, "Cascadia Mono", "Fira Mono", "JetBrains Mono", monospace;
-  --font-serif: 'EB Garamond', Georgia, serif;
+  --font-mono:         'Commit Mono', ui-monospace, "Cascadia Mono", "Fira Mono", "JetBrains Mono", monospace;
+  --font-serif:        'EB Garamond', Georgia, serif;
+  --font-serif-italic: 'Crimson Pro', 'EB Garamond', Georgia, serif;
 
   /* Type scale */
   --text-xs:   0.8rem;
