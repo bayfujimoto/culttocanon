@@ -10,6 +10,7 @@ import { marked, Marked } from "marked";
 import { diffLines, diffSentences, diffWords } from "./line-diff.js";
 import { imageAttributesExtension } from "../markdown/image-attributes.js";
 import { makeImageRendererExtension }  from "../markdown/image-renderer.js";
+import { makeParatextExtensions }      from "../markdown/paratext.js";
 import { enhanceImages }               from "../runtime/ctc-image-reveal.js";
 
 marked.setOptions({
@@ -33,6 +34,10 @@ function parseBodyFor(post) {
     extensions: [
       imageAttributesExtension,
       makeImageRendererExtension(post.folder || ""),
+      // Footnote/citation markers + definition/block strippers. Numbers come
+      // from post.footnotes / post.citations (computed by the loader), so the
+      // inline markers match the Marginalia entries exactly.
+      ...makeParatextExtensions(post),
     ],
   });
   return m.parse(post.body || "");

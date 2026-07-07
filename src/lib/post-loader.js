@@ -29,14 +29,22 @@
 //     epigraph:   string | null,
 //     length:     number,        // word count of body (auto-computed)
 //     body:       string,        // markdown body
+//     footnotes:  Array,         // { label, num, text } — ordered by first ref
+//     citations:  Array,         // { key, num, author, title, year, url, locator }
 //     folder:     "ESS-2026-001-on-the-backrooms-as-canon",  // post directory name
 //     _file:      "/src/content/posts/ESS-2026-001-…/post.md",
 //   }
+//
+// `footnotes` and `citations` are the post's paratext apparatus, parsed from
+// the body by extractParatext (see src/markdown/paratext.js). They are the
+// single source of truth for marker numbering, shared by the render extensions
+// and the Marginalia view. Empty arrays when the post has no apparatus.
 
 import { parseFrontMatter } from "./front-matter.js";
 import { ENUMS } from "./vocabularies.js";
 import { isPostId } from "./id.js";
 import { wordCount } from "./history.js";
+import { extractParatext } from "../markdown/paratext.js";
 
 // Vite glob: each post's `post.md` lives under src/content/posts/<slug>/.
 // Eagerly imported as raw strings. New posts trigger an HMR reload.
@@ -120,6 +128,12 @@ function parseOne(file, raw) {
   // to build URLs to derived assets (image.dither.png and friends).
   const folder = folderFromFile(file);
 
+  // Paratext apparatus — footnotes and citations parsed from the body. Any
+  // lint warnings (orphan refs, undefined keys, unclosed blocks) print to the
+  // console so authoring slips are visible during dev.
+  const { footnotes, citations, warnings } = extractParatext(body);
+  for (const w of warnings) warn(file, w);
+
   return {
     id:         data.id,
     version:    typeof data.version === "string" ? data.version : "0.1.0",
@@ -138,6 +152,8 @@ function parseOne(file, raw) {
     epigraph:   data.epigraph ?? null,
     length:     wordCount(body),
     body:       body.trim(),
+    footnotes,
+    citations,
     folder,
     _file:      file,
   };

@@ -1,6 +1,10 @@
 // ── Marginalia view ──────────────────────────────────────────────────────────
 // Paratext for the currently-open post. Shows status, kind, register, dates,
-// confidence, subjects, and links. When no post is open, shows a brief hint.
+// confidence, subjects, and links, then the apparatus proper: footnotes and a
+// works-cited list, each numbered to match the inline markers in the Read pane
+// (see src/markdown/paratext.js). When no post is open, shows a brief hint.
+
+import { marked } from "marked";
 
 export function renderMarginalia(container, post, { allPosts, onSelect, versions, onVersionSelect, activeVersion } = {}) {
   if (!container) return;
@@ -96,6 +100,7 @@ export function renderMarginalia(container, post, { allPosts, onSelect, versions
         </div>
       `).join("")}
     </dl>
+    ${renderParatext(post)}
   `;
 
   // Wire link clicks to switch posts in-place rather than navigating
@@ -122,6 +127,58 @@ export function renderMarginalia(container, post, { allPosts, onSelect, versions
       });
     });
   }
+}
+
+// ── Paratext sections: footnotes + works cited ──────────────────────────────
+// Rendered from post.footnotes / post.citations (computed by the loader). Each
+// entry carries an id (fn-N / cite-N) that the Read pane's markers point at via
+// their href, and a `↩` back-link to the first marker (fnref-N / citeref-N).
+// The cross-pane click-to-highlight wiring lands in Phase 2; the anchor hrefs
+// are the no-JS fallback until then.
+function renderParatext(post) {
+  let html = "";
+
+  if (post.footnotes?.length) {
+    const items = post.footnotes.map((f) => `
+      <li class="marginalia-note" id="fn-${f.num}" data-fn="${f.num}">
+        <span class="marginalia-note-num">${f.num}</span>
+        <span class="marginalia-note-body">${marked.parseInline(f.text || "")}<a class="marginalia-note-back" href="#fnref-${f.num}" data-fn-back="${f.num}" title="back to reference">↩</a></span>
+      </li>`).join("");
+    html += `
+      <section class="marginalia-apparatus">
+        <h3 class="marginalia-apparatus-head">footnotes</h3>
+        <ol class="marginalia-apparatus-list">${items}</ol>
+      </section>`;
+  }
+
+  if (post.citations?.length) {
+    const items = post.citations.map((c) => `
+      <li class="marginalia-cite" id="cite-${c.num}" data-cite="${c.num}">
+        <span class="marginalia-note-num">[${c.num}]</span>
+        <span class="marginalia-note-body">${formatCitation(c)}<a class="marginalia-note-back" href="#citeref-${c.num}" data-cite-back="${c.num}" title="back to reference">↩</a></span>
+      </li>`).join("");
+    html += `
+      <section class="marginalia-apparatus">
+        <h3 class="marginalia-apparatus-head">works cited</h3>
+        <ol class="marginalia-apparatus-list">${items}</ol>
+      </section>`;
+  }
+
+  return html;
+}
+
+// Format one citation entry: `Author, *Title* (Year), locator`, the whole line
+// an outbound link when a url is present.
+function formatCitation(c) {
+  const author = escapeHTML(c.author || "");
+  const title  = `<em>${escapeHTML(c.title || "")}</em>`;
+  const year   = c.year ? ` (${escapeHTML(c.year)})` : "";
+  const loc    = c.locator ? `, ${escapeHTML(c.locator)}` : "";
+  const inner  = `${author}, ${title}${year}${loc}`;
+  if (c.url) {
+    return `<a class="marginalia-link" href="${escapeAttr(c.url)}" target="_blank" rel="noopener">${inner}</a>`;
+  }
+  return inner;
 }
 
 function formatDate(d) {

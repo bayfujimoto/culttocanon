@@ -25,6 +25,7 @@ import { parseId, formatId } from "../../lib/id.js";
 import { addImageToQueue } from "../lib/image-queue.js";
 import { bumpVersion } from "../lib/version.js";
 import { openBumpPicker, openStartVersionPicker } from "../lib/bump-picker.js";
+import { lintParatext } from "../lib/paratext-lint.js";
 
 let _container = null;
 let _post      = null;
@@ -89,6 +90,10 @@ export function renderForm(container, post, { isNew = false } = {}) {
   wireDateValidation();
   // Paste / drop image upload on the body textarea
   wireImageUpload();
+  // "+ footnote" / "+ citation" insert helpers + live lint above the body
+  mountParatextToolbar();
+  // `[@` citation-key autocomplete inside the body textarea
+  wireCitationAutocomplete();
   // Mark dirty on any change. Hidden inputs (listbox value carriers) dispatch
   // a bubbling `change`, so this loop catches them too.
   container.querySelectorAll("input, textarea, select").forEach(el => {
@@ -120,6 +125,13 @@ export function save() {
   if (!_container.querySelector("#field-id")) return;
 
   const data = readForm();
+
+  // Advisory paratext lint — non-blocking, logged for the record at commit
+  // time (the live toolbar readout is the primary surface while authoring).
+  const lintIssues = lintParatext(data.body);
+  if (lintIssues.length) {
+    console.warn(`[paratext] ${lintIssues.length} issue(s) in ${data.id || "post"}:\n  ${lintIssues.join("\n  ")}`);
+  }
 
   // Required-field guard — the form lets you elide them but we won't stage
   // an invalid post.
@@ -440,6 +452,227 @@ function insertAtCaret(textarea, text) {
   const newPos = start + text.length;
   textarea.selectionStart = textarea.selectionEnd = newPos;
   textarea.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+// ── Paratext insert helpers ──────────────────────────────────────────────────
+// A small toolbar above the body textarea with two buttons. Each splices a
+// marker at the caret and appends the matching definition stub, so authoring a
+// footnote or citation is one click plus filling in the blank. The syntax is
+// the same the renderer parses (see src/markdown/paratext.js); numbering is
+// computed at render time, so these only need to keep labels/keys unique.
+function mountParatextToolbar() {
+  const body = _container.querySelector("#field-body");
+  if (!body) return;
+  const control = body.closest(".form-control");
+  if (!control || control.querySelector(".form-paratext-bar")) return;
+  control.classList.add("form-control--body");   // positioning ctx for autocomplete
+
+  const bar = document.createElement("div");
+  bar.className = "form-paratext-bar";
+  bar.innerHTML =
+    `<button type="button" class="form-paratext-btn" id="pt-footnote" title="insert a footnote: marker at the caret + a definition to fill in">+ footnote</button>` +
+    `<button type="button" class="form-paratext-btn" id="pt-citation" title="insert a citation: marker at the caret + a works-cited row to fill in">+ citation</button>` +
+    `<span class="form-paratext-lint" id="pt-lint" aria-live="polite"></span>`;
+  control.insertBefore(bar, body);
+  bar.querySelector("#pt-footnote").addEventListener("click", insertFootnote);
+  bar.querySelector("#pt-citation").addEventListener("click", insertCitation);
+
+  // Live, non-blocking lint readout — updates as the body changes.
+  body.addEventListener("input", updateParatextLint);
+  updateParatextLint();
+}
+
+// Refresh the toolbar lint readout from the current body. Empty when clean;
+// otherwise a count with the full list in the tooltip.
+function updateParatextLint() {
+  const body = _container.querySelector("#field-body");
+  const el   = _container.querySelector("#pt-lint");
+  if (!body || !el) return;
+  const issues = lintParatext(body.value);
+  if (!issues.length) {
+    el.textContent = "";
+    el.removeAttribute("title");
+    el.classList.remove("has-issues");
+    return;
+  }
+  el.textContent = `⚠ ${issues.length} paratext issue${issues.length > 1 ? "s" : ""}`;
+  el.title = issues.join("\n");
+  el.classList.add("has-issues");
+}
+
+// Insert `[^N]` at the caret and append a `[^N]: ` definition line at the end
+// of the body, leaving the caret on the empty definition to type the note.
+function insertFootnote() {
+  const body = _container.querySelector("#field-body");
+  if (!body) return;
+  const label = nextFootnoteLabel(body.value);
+  insertAtCaret(body, `[^${label}]`);
+
+  let v = body.value;
+  const needsNewline    = !/\n$/.test(v);
+  const alreadyHasDefs  = /(^|\n)\[\^[^\]\s]+\]:/.test(v);
+  body.value = v + (needsNewline ? "\n" : "") + (alreadyHasDefs ? "" : "\n") + `[^${label}]: `;
+  const end = body.value.length;
+  body.setSelectionRange(end, end);
+  body.dispatchEvent(new Event("input", { bubbles: true }));
+  body.focus();
+  _dirty = true;
+}
+
+// Insert `[@key]` at the caret and add a stub row to the ::: citations block
+// (creating the block at the end if it doesn't exist yet). Leaves the caret
+// selecting the row's "Author" placeholder.
+function insertCitation() {
+  const body = _container.querySelector("#field-body");
+  if (!body) return;
+  const key = nextCitationKey(body.value);
+  insertAtCaret(body, `[@${key}]`);
+
+  const row = `${key} | Author | Title | Year | URL`;
+  let v = body.value;
+  if (/(^|\n):::[ \t]*citations[ \t]*\r?\n/.test(v)) {
+    // Splice the row in just before the first block's closing :::.
+    v = v.replace(/(:::[ \t]*citations[ \t]*\r?\n[\s\S]*?)(\r?\n:::[ \t]*)/, `$1\n${row}$2`);
+  } else {
+    if (!/\n$/.test(v)) v += "\n";
+    v += `\n::: citations\n${row}\n:::\n`;
+  }
+  body.value = v;
+
+  const idx = body.value.indexOf(row);
+  if (idx >= 0) {
+    const authorStart = idx + key.length + 3;      // past "key | "
+    body.setSelectionRange(authorStart, authorStart + "Author".length);
+  }
+  body.dispatchEvent(new Event("input", { bubbles: true }));
+  body.focus();
+  _dirty = true;
+}
+
+// Next unused numeric footnote label (max existing + 1).
+function nextFootnoteLabel(text) {
+  let max = 0;
+  for (const m of text.matchAll(/\[\^(\d+)\]/g)) max = Math.max(max, parseInt(m[1], 10));
+  return max + 1;
+}
+
+// Next free `srcN` citation key not already used as a reference or row key.
+function nextCitationKey(text) {
+  const keys = new Set();
+  for (const m of text.matchAll(/\[@([A-Za-z0-9_.:-]+)/g)) keys.add(m[1]);
+  let n = 1;
+  while (keys.has(`src${n}`)) n++;
+  return `src${n}`;
+}
+
+// ── Citation-key autocomplete ────────────────────────────────────────────────
+// Typing `[@` in the body offers the keys defined in the ::: citations block.
+// Arrow keys move the selection; Enter/Tab accept; Esc dismisses; click
+// selects. The dropdown anchors to the bottom of the body textarea — simple
+// and predictable; caret-pixel anchoring is a possible later refinement.
+let _acList  = null;
+let _acItems = [];
+let _acIndex = -1;
+
+function wireCitationAutocomplete() {
+  const body = _container.querySelector("#field-body");
+  if (!body) return;
+  const control = body.closest(".form-control");
+  if (!control) return;
+
+  _acList = document.createElement("ul");
+  _acList.className = "form-cite-complete";
+  _acList.hidden = true;
+  control.appendChild(_acList);
+
+  body.addEventListener("input",   () => refreshAutocomplete(body));
+  body.addEventListener("keydown", (e) => handleAutocompleteKey(e, body));
+  body.addEventListener("blur",    () => setTimeout(hideAutocomplete, 120));
+  // mousedown (not click) so selection lands before the textarea's blur fires.
+  _acList.addEventListener("mousedown", (e) => {
+    const li = e.target.closest("li[data-key]");
+    if (!li) return;
+    e.preventDefault();
+    acceptAutocomplete(body, li.dataset.key);
+  });
+}
+
+// The partial citation key being typed immediately before the caret, or null
+// when the caret isn't inside an open `[@…` reference.
+function currentCitationPartial(body) {
+  const before = body.value.slice(0, body.selectionStart);
+  const m = /\[@([A-Za-z0-9_.:-]*)$/.exec(before);
+  return m ? m[1] : null;
+}
+
+// Keys declared in the first ::: citations block.
+function definedCitationKeys(text) {
+  const keys = [];
+  const block = /(?:^|\n):::[ \t]*citations[ \t]*\r?\n([\s\S]*?)\r?\n:::/.exec(text);
+  if (block) {
+    for (const line of block[1].split(/\r?\n/)) {
+      const k = line.split("|")[0]?.trim();
+      if (k) keys.push(k);
+    }
+  }
+  return [...new Set(keys)];
+}
+
+function refreshAutocomplete(body) {
+  const partial = currentCitationPartial(body);
+  if (partial === null) { hideAutocomplete(); return; }
+  const cands = definedCitationKeys(body.value).filter((k) => k.startsWith(partial));
+  if (!cands.length) { hideAutocomplete(); return; }
+  _acItems = cands;
+  _acIndex = 0;
+  _acList.innerHTML = cands.map((k, i) =>
+    `<li data-key="${escapeAttr(k)}" class="${i === 0 ? "is-active" : ""}">${escapeHTML(k)}</li>`
+  ).join("");
+  _acList.hidden = false;
+}
+
+function handleAutocompleteKey(e, body) {
+  if (_acList.hidden) return;
+  if (e.key === "ArrowDown")    { e.preventDefault(); moveAutocomplete(1); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); moveAutocomplete(-1); }
+  else if (e.key === "Enter" || e.key === "Tab") {
+    e.preventDefault();
+    acceptAutocomplete(body, _acItems[_acIndex]);
+  } else if (e.key === "Escape") { e.preventDefault(); hideAutocomplete(); }
+}
+
+function moveAutocomplete(delta) {
+  const items = Array.from(_acList.querySelectorAll("li"));
+  if (!items.length) return;
+  items[_acIndex]?.classList.remove("is-active");
+  _acIndex = (_acIndex + delta + items.length) % items.length;
+  items[_acIndex].classList.add("is-active");
+  items[_acIndex].scrollIntoView({ block: "nearest" });
+}
+
+function acceptAutocomplete(body, key) {
+  if (!key) { hideAutocomplete(); return; }
+  const pos    = body.selectionStart;
+  const before = body.value.slice(0, pos);
+  const after  = body.value.slice(pos);
+  const m = /\[@([A-Za-z0-9_.:-]*)$/.exec(before);
+  if (!m) { hideAutocomplete(); return; }
+  const start  = pos - m[1].length;               // just after "[@"
+  const insert = key + "]";
+  body.value = before.slice(0, start) + insert + after;
+  const caret = start + insert.length;
+  body.setSelectionRange(caret, caret);
+  body.dispatchEvent(new Event("input", { bubbles: true }));
+  hideAutocomplete();
+  body.focus();
+}
+
+function hideAutocomplete() {
+  if (!_acList) return;
+  _acList.hidden = true;
+  _acList.innerHTML = "";
+  _acIndex = -1;
+  _acItems = [];
 }
 
 // ── Read form back into a Post object ────────────────────────────────────────

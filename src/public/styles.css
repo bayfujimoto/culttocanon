@@ -284,6 +284,97 @@
   font-size: var(--text-xs);
 }
 
+/* ── Marginalia apparatus: footnotes + works cited ───────────────────────────
+   The numbered paratext blocks below the metadata dl. Entry numbers match the
+   inline markers in the Read pane; each entry has a `↩` back-link. Rendered by
+   renderParatext() in src/public/views/marginalia.js.
+   ───────────────────────────────────────────────────────────────────────── */
+.marginalia-apparatus {
+  margin-top: 16px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-faint);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.marginalia-apparatus-head {
+  margin: 0 0 8px;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+}
+
+.marginalia-apparatus-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.marginalia-note,
+.marginalia-cite {
+  display: grid;
+  grid-template-columns: 2.2em 1fr;
+  gap: 8px;
+  padding: 4px 0;
+  align-items: baseline;
+  color: var(--fg-muted);
+  scroll-margin-top: 8px;
+}
+
+.marginalia-note-num {
+  color: var(--accent-blue);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.marginalia-note-body {
+  color: var(--fg);
+  margin: 0;
+  word-break: break-word;
+}
+
+.marginalia-note-body em {
+  font-style: italic;
+}
+
+.marginalia-note-body a:not(.marginalia-note-back) {
+  color: var(--accent-blue);
+  text-decoration: none;
+  border-bottom: 1px solid currentColor;
+}
+
+.marginalia-note-body a:not(.marginalia-note-back):hover {
+  opacity: 0.7;
+}
+
+.marginalia-note-back {
+  margin-left: 6px;
+  color: var(--fg-dim);
+  text-decoration: none;
+  border-bottom: none;
+}
+
+.marginalia-note-back:hover {
+  color: var(--fg);
+}
+
+/* Click-to-highlight flash — a marker click in Read lands here, and vice
+   versa. Re-triggered by toggling .is-cited (see flashCited in main.js). The
+   keyframe is defined once here and reused by the Read-pane markers in
+   post-body.css, since both stylesheets load on the public page. */
+@keyframes ctc-paratext-flash {
+  from { background: color-mix(in srgb, var(--accent-blue) 28%, transparent); }
+  to   { background: transparent; }
+}
+
+.marginalia-note.is-cited,
+.marginalia-cite.is-cited {
+  animation: ctc-paratext-flash 1.3s ease-out;
+  border-radius: 2px;
+}
+
 /* ── Version diff (Read pane) ─────────────────────────────────────────────── */
 .post--diff {
   font-family: var(--font-mono);

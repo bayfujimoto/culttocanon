@@ -175,3 +175,42 @@
   text-transform: uppercase;
   color: var(--fg-dim);
 }
+
+/* ── Paratext markers ─────────────────────────────────────────────────────────
+   Inline footnote (¹) and citation ([1]) references, rendered by the paratext
+   marked extension (src/markdown/paratext.js). Mono numerals, no underline —
+   they must not read as prose links. The whole apparatus lives in the
+   Marginalia pane; these markers point at it (Phase 2 adds click-to-highlight).
+   ───────────────────────────────────────────────────────────────────────── */
+.post-body .fn-ref,
+.post-body .cite-ref {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.post-body .fn-ref a,
+.post-body .cite-ref a {
+  color: var(--accent-blue);
+  text-decoration: none;
+  border-bottom: none;
+  padding: 0 1px;
+  cursor: pointer;
+}
+
+.post-body .cite-ref a {
+  font-size: 0.85em;
+  letter-spacing: 0.02em;
+}
+
+.post-body .fn-ref a:hover,
+.post-body .cite-ref a:hover {
+  opacity: 0.7;
+}
+
+/* Flash when arrived-at from a Marginalia back-link (keyframe defined in
+   public/styles.css). */
+.post-body .fn-ref.is-cited a,
+.post-body .cite-ref.is-cited a {
+  animation: ctc-paratext-flash 1.3s ease-out;
+  border-radius: 2px;
+}

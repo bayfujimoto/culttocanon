@@ -9,6 +9,7 @@
     "dev:netlify": "netlify dev",
     "build": "vite build",
     "preview": "vite preview",
+    "test": "node --test test/*.test.js",
     "dither": "node build/dither.js"
   },
   "dependencies": {

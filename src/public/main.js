@@ -246,6 +246,53 @@ function openPost(post) {
 // ── Render Browse with current data ──────────────────────────────────────────
 renderBrowse(browseBody, posts, { onSelect: openPost });
 
+// ── Paratext cross-pane wiring ───────────────────────────────────────────────
+// Footnote/citation markers live in Read; their entries live in Marginalia.
+// A marker click scrolls to and flashes its entry; an entry's ↩ back-link
+// returns to the marker. Bound once via delegation on the two pane bodies
+// (their innerHTML is replaced on every render, but the containers persist),
+// so this survives re-renders and is a harmless no-op in the diff view, which
+// has no markers. On mobile the panes are tabbed, so switch before scrolling.
+initParatextWiring();
+
+function initParatextWiring() {
+  const isMobile = () => window.matchMedia("(max-width: 700px)").matches;
+
+  readBody.addEventListener("click", (e) => {
+    const a = e.target.closest(".fn-ref a, .cite-ref a");
+    if (!a || !readBody.contains(a)) return;
+    e.preventDefault();
+    const num = a.dataset.fn || a.dataset.cite;
+    const entry = margBody.querySelector(a.dataset.fn ? `#fn-${num}` : `#cite-${num}`);
+    if (!entry) return;
+    if (isMobile()) setMobileActivePane("m");
+    entry.scrollIntoView({ block: "center", behavior: "smooth" });
+    flashCited(entry);
+  });
+
+  margBody.addEventListener("click", (e) => {
+    const a = e.target.closest(".marginalia-note-back");
+    if (!a || !margBody.contains(a)) return;
+    e.preventDefault();
+    const num = a.dataset.fnBack || a.dataset.citeBack;
+    const marker = readBody.querySelector(a.dataset.fnBack ? `#fnref-${num}` : `#citeref-${num}`);
+    if (!marker) return;
+    if (isMobile()) setMobileActivePane("r");
+    marker.scrollIntoView({ block: "center", behavior: "smooth" });
+    flashCited(marker.closest(".fn-ref, .cite-ref") || marker);
+  });
+}
+
+// Re-triggerable highlight: drop the class, force a reflow, re-add it, then
+// clear it after the animation so a second click flashes again.
+function flashCited(el) {
+  if (!el) return;
+  el.classList.remove("is-cited");
+  void el.offsetWidth;
+  el.classList.add("is-cited");
+  setTimeout(() => el.classList.remove("is-cited"), 1300);
+}
+
 // ── Wire the router as the single source of truth ────────────────────────────
 initRouter((slug, path, version) => {
   if (!slug) {
